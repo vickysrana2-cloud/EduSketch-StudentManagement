@@ -1,0 +1,101 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --paper-bg: #FAF9F6;
+    --paper-card: #FFFFFF;
+    --ink-color: #000000;
+    --ink-muted: #334155;
+    --border-color: #000000;
+  }
+
+  .dark {
+    --paper-bg: #090A0C;
+    --paper-card: #121418;
+    --ink-color: #FFFFFF;
+    --ink-muted: #94A3B8;
+    --border-color: #FFFFFF;
+  }
+
+  body {
+    background-color: var(--paper-bg);
+    color: var(--ink-color);
+    font-family: 'Outfit', sans-serif;
+    background-image: radial-gradient(rgba(0, 0, 0, 0.12) 1px, transparent 0);
+    background-size: 24px 24px;
+  }
+
+  .dark body {
+    background-image: radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 0);
+  }
+}
+
+.font-handwriting {
+  font-family: 'Caveat', 'Kalam', cursive;
+}
+
+.font-kalam {
+  font-family: 'Kalam', cursive;
+}
+
+/* 3px Hand-Drawn Bold Black & White Borders & Shadows */
+.sketch-border {
+  border: 3px solid var(--border-color);
+  border-radius: 255px 15px 225px 15px/15px 225px 15px 255px;
+}
+
+.sketch-border-sm {
+  border: 3px solid var(--border-color);
+  border-radius: 12px 255px 15px 225px/225px 15px 255px 15px;
+}
+
+.sketch-border-dashed {
+  border: 3px dashed var(--border-color);
+  border-radius: 255px 15px 225px 15px/15px 225px 15px 255px;
+}
+
+.sketch-shadow {
+  box-shadow: 5px 6px 0px 0px var(--border-color);
+}
+
+.sketch-shadow-sm {
+  box-shadow: 3px 4px 0px 0px var(--border-color);
+}
+
+.sketch-shadow-hover:hover {
+  box-shadow: 7px 8px 0px 0px var(--border-color);
+  transform: translateY(-2px) rotate(-0.3deg);
+}
+
+/* Washi Tape Accent - Monochromatic Black & White */
+.tape-accent {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%) rotate(-1.5deg);
+  width: 95px;
+  height: 24px;
+  background-color: rgba(255, 255, 255, 0.95);
+  border: 2px dashed #000000;
+  backdrop-filter: blur(2px);
+  z-index: 10;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.dark .tape-accent {
+  background-color: rgba(20, 20, 20, 0.95);
+  border-color: #FFFFFF;
+}
+
+/* Rotations for organic feel */
+.rotate-sketch-left {
+  transform: rotate(-0.6deg);
+}
+
+.rotate-sketch-right {
+  transform: rotate(0.6deg);
+}
+
+.rotate-sketch-sm {
+  transform: rotate(-0.3deg);
+}
