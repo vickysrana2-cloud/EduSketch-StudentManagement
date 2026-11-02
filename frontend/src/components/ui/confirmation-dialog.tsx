@@ -31,7 +31,7 @@ export function ConfirmationDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-xl border border-slate-200 dark:border-slate-800 space-y-4">
+      <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-xl space-y-4">
         <div className="flex items-start gap-4">
           <div
             className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
@@ -52,7 +52,7 @@ export function ConfirmationDialog({
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+        <div className="flex justify-end gap-3 pt-4">
           <Button variant="outline" onClick={onClose} disabled={isLoading}>
             {cancelText}
           </Button>

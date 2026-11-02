@@ -2,31 +2,72 @@
 
 @layer base {
   :root {
+    /* Children Premium Color System Tokens */
+    --color-blue: #4D9FFF;
+    --color-purple: #8B6DFF;
+    --color-pink: #FF6FAE;
+    --color-yellow: #FFC83D;
+    
+    --color-green: #48C78E;
+    --color-coral: #FF8066;
+    --color-aqua: #36CFC9;
+    --color-orange: #FF9F43;
+
+    --bg-blue: #EAF6FF;
+    --bg-green: #EFFFF7;
+    --bg-purple: #F4EEFF;
+    --bg-coral: #FFF1E8;
+    --bg-yellow: #FFFBE5;
+    --bg-pink: #FFF0F6;
+
+    --border-blue: #8DD8FF;
+    --border-green: #8DE5C1;
+    --border-purple: #C5A7FF;
+    --border-pink: #FFB3D1;
+    --border-coral: #FFC49B;
+    --border-yellow: #FFE27A;
+    --border-aqua: #86E8E0;
+
     --paper-bg: #FAF9F6;
     --paper-card: #FFFFFF;
-    --ink-color: #000000;
-    --ink-muted: #334155;
-    --border-color: #000000;
+    --ink-color: #1E293B;
+    --ink-muted: #475569;
+    --border-color: #334155;
   }
 
   .dark {
-    --paper-bg: #090A0C;
-    --paper-card: #121418;
-    --ink-color: #FFFFFF;
+    --bg-blue: #112338;
+    --bg-green: #0F2D25;
+    --bg-purple: #231B3C;
+    --bg-coral: #3A1F1B;
+    --bg-yellow: #362E12;
+    --bg-pink: #361726;
+
+    --border-blue: #2A6BB8;
+    --border-green: #258C61;
+    --border-purple: #5A3EAD;
+    --border-pink: #B83B77;
+    --border-coral: #B84A35;
+    --border-yellow: #B88914;
+    --border-aqua: #1E8782;
+
+    --paper-bg: #0B0E14;
+    --paper-card: #141824;
+    --ink-color: #F8FAFC;
     --ink-muted: #94A3B8;
-    --border-color: #FFFFFF;
+    --border-color: #475569;
   }
 
   body {
     background-color: var(--paper-bg);
     color: var(--ink-color);
     font-family: 'Outfit', sans-serif;
-    background-image: radial-gradient(rgba(0, 0, 0, 0.12) 1px, transparent 0);
+    background-image: radial-gradient(rgba(77, 159, 255, 0.15) 1.5px, transparent 0);
     background-size: 24px 24px;
   }
 
   .dark body {
-    background-image: radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 0);
+    background-image: radial-gradient(rgba(139, 109, 255, 0.15) 1.5px, transparent 0);
   }
 }
 
@@ -38,28 +79,47 @@
   font-family: 'Kalam', cursive;
 }
 
-/* 3px Hand-Drawn Bold Black & White Borders & Shadows */
+/* Children Color Utilities - Backgrounds */
+.bg-pastel-blue { background-color: var(--bg-blue); }
+.bg-pastel-green { background-color: var(--bg-green); }
+.bg-pastel-purple { background-color: var(--bg-purple); }
+.bg-pastel-coral { background-color: var(--bg-coral); }
+.bg-pastel-yellow { background-color: var(--bg-yellow); }
+.bg-pastel-pink { background-color: var(--bg-pink); }
+
+/* Children Color Utilities - Borders */
+.border-kids-blue { border-color: transparent; }
+.border-kids-green { border-color: transparent; }
+.border-kids-purple { border-color: transparent; }
+.border-kids-pink { border-color: transparent; }
+.border-kids-coral { border-color: transparent; }
+.border-kids-yellow { border-color: transparent; }
+.border-kids-aqua { border-color: transparent; }
+
+/* Hand-Drawn Shadows */
 .sketch-border {
-  border: 3px solid var(--border-color);
+  border: none;
   border-radius: 255px 15px 225px 15px/15px 225px 15px 255px;
 }
 
 .sketch-border-sm {
-  border: 3px solid var(--border-color);
+  border: none;
   border-radius: 12px 255px 15px 225px/225px 15px 255px 15px;
 }
 
 .sketch-border-dashed {
-  border: 3px dashed var(--border-color);
+  border: none;
   border-radius: 255px 15px 225px 15px/15px 225px 15px 255px;
 }
 
 .sketch-shadow {
   box-shadow: 5px 6px 0px 0px var(--border-color);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .sketch-shadow-sm {
   box-shadow: 3px 4px 0px 0px var(--border-color);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .sketch-shadow-hover:hover {
@@ -67,7 +127,7 @@
   transform: translateY(-2px) rotate(-0.3deg);
 }
 
-/* Washi Tape Accent - Monochromatic Black & White */
+/* Washi Tape Accent - Colorful */
 .tape-accent {
   position: absolute;
   top: -12px;
@@ -76,15 +136,13 @@
   width: 95px;
   height: 24px;
   background-color: rgba(255, 255, 255, 0.95);
-  border: 2px dashed #000000;
   backdrop-filter: blur(2px);
   z-index: 10;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(77, 159, 255, 0.2);
 }
 
 .dark .tape-accent {
   background-color: rgba(20, 20, 20, 0.95);
-  border-color: #FFFFFF;
 }
 
 /* Rotations for organic feel */
@@ -99,3 +157,15 @@
 .rotate-sketch-sm {
   transform: rotate(-0.3deg);
 }
+
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+

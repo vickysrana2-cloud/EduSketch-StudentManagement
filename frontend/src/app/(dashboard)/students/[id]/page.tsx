@@ -207,9 +207,9 @@ export default function StudentDetailsPage() {
   if (isLoading) {
     return (
       <div className="space-y-6 max-w-4xl mx-auto py-8">
-        <Skeleton className="h-10 w-48 rounded-xl" />
-        <Skeleton className="h-64 w-full rounded-3xl" />
-        <Skeleton className="h-48 w-full rounded-3xl" />
+        <Skeleton className="h-10 w-48 rounded-xl bg-[#EAF6FF]" />
+        <Skeleton className="h-64 w-full rounded-3xl bg-[#EAF6FF]" />
+        <Skeleton className="h-48 w-full rounded-3xl bg-[#EAF6FF]" />
       </div>
     );
   }
@@ -232,19 +232,19 @@ export default function StudentDetailsPage() {
       <div className="flex items-center justify-between">
         <Link
           href="/students"
-          className="inline-flex items-center gap-2 text-sm font-bold text-black dark:text-white hover:underline transition"
+          className="inline-flex items-center gap-2 text-sm font-bold text-[#4D9FFF] hover:text-[#3B8EEB] transition-colors"
         >
           <ArrowLeft className="h-4 w-4" /> Back to Students
         </Link>
       </div>
 
       {/* Student Profile Card */}
-      <div className="relative rounded-3xl border-[3px] border-black dark:border-white bg-white dark:bg-black p-8 sketch-shadow rotate-sketch-sm">
+      <div className="relative rounded-3xl bg-[#EAF6FF] dark:bg-[#112338] p-8 sketch-shadow rotate-sketch-sm">
         <div className="tape-accent" />
 
         {isEditingStudent ? (
           <form onSubmit={handleSubmitStudent(onUpdateStudent as any)} className="space-y-4">
-            <h2 className="text-2xl font-bold font-handwriting text-black dark:text-white">
+            <h2 className="text-2xl font-bold font-handwriting text-slate-900 dark:text-slate-100">
               Edit Student Profile
             </h2>
             <Input label="Full Name" {...registerStudent("name")} error={studentErrors.name?.message} />
@@ -254,6 +254,7 @@ export default function StudentDetailsPage() {
             <div className="flex gap-3 pt-4">
               <Button
                 type="submit"
+                variant="blue"
                 isLoading={isUpdatingStudent}
                 className="font-handwriting text-base"
               >
@@ -273,22 +274,22 @@ export default function StudentDetailsPage() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-2">
               <div className="flex items-center gap-3">
-                <div className="h-16 w-16 rounded-2xl bg-black text-white dark:bg-white dark:text-black border-[3px] border-black dark:border-white flex items-center justify-center font-bold font-handwriting text-3xl sketch-shadow-sm">
+                <div className="h-16 w-16 rounded-2xl bg-[#4D9FFF] text-white flex items-center justify-center font-bold font-handwriting text-3xl sketch-shadow-sm shadow-[0_4px_12px_rgba(77,159,255,0.35)]">
                   {student.name?.charAt(0)}
                 </div>
                 <div>
-                  <h1 className="text-3xl font-extrabold font-handwriting text-black dark:text-white leading-tight">
+                  <h1 className="text-3xl font-extrabold font-handwriting text-slate-900 dark:text-slate-100 leading-tight">
                     {student.name}
                   </h1>
-                  <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{student.email}</p>
+                  <p className="text-sm font-medium text-slate-600 dark:text-slate-300">{student.email}</p>
                 </div>
               </div>
 
               <div className="flex items-center gap-2 pt-2">
-                <Badge variant="warning">
+                <Badge variant="yellow">
                   Age: {student.age} years
                 </Badge>
-                <Badge variant="secondary">
+                <Badge variant="blue">
                   ID: #{student.id}
                 </Badge>
               </div>
@@ -297,14 +298,14 @@ export default function StudentDetailsPage() {
             <div className="flex items-center gap-3">
               <Button
                 onClick={() => setIsEditingStudent(true)}
-                variant="outline"
+                variant="purple"
                 className="font-handwriting text-base gap-2"
               >
                 <Edit3 className="h-4 w-4" /> Edit Profile
               </Button>
               <Button
                 onClick={() => setIsDeletingStudent(true)}
-                variant="destructive"
+                variant="coral"
                 className="font-handwriting text-base gap-2"
               >
                 <Trash2 className="h-4 w-4" /> Delete
@@ -315,12 +316,12 @@ export default function StudentDetailsPage() {
       </div>
 
       {/* Add Mark Form */}
-      <div className="rounded-3xl border-[3px] border-black dark:border-white bg-white dark:bg-black p-8 sketch-shadow space-y-6">
-        <div className="pb-4 border-b-[3px] border-black dark:border-white">
-          <h2 className="text-2xl font-bold font-handwriting text-black dark:text-white flex items-center gap-2">
-            Record Academic Mark <BookOpen className="h-5 w-5 text-black dark:text-white" />
+      <div className="rounded-3xl bg-[#F4EEFF] dark:bg-[#231B3C] p-8 sketch-shadow space-y-6">
+        <div className="pb-4">
+          <h2 className="text-2xl font-bold font-handwriting text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            Record Academic Mark <BookOpen className="h-5 w-5 text-[#8B6DFF]" />
           </h2>
-          <p className="text-xs font-medium text-slate-700 dark:text-slate-300">
+          <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
             Add subject exam scores out of 100.
           </p>
         </div>
@@ -331,6 +332,7 @@ export default function StudentDetailsPage() {
 
           <Button
             type="submit"
+            variant="purple"
             isLoading={isAddingMark}
             className="font-handwriting text-lg h-11 gap-2"
           >
@@ -340,18 +342,18 @@ export default function StudentDetailsPage() {
       </div>
 
       {/* Marks List */}
-      <div className="rounded-3xl border-[3px] border-black dark:border-white bg-white dark:bg-black p-8 sketch-shadow space-y-6">
-        <div className="pb-4 border-b-[3px] border-black dark:border-white">
-          <h2 className="text-2xl font-bold font-handwriting text-black dark:text-white flex items-center gap-2">
-            Academic Performance <Award className="h-5 w-5 text-black dark:text-white" />
+      <div className="rounded-3xl bg-[#FFF0F6] dark:bg-[#361726] p-8 sketch-shadow space-y-6">
+        <div className="pb-4">
+          <h2 className="text-2xl font-bold font-handwriting text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            Academic Performance <Award className="h-5 w-5 text-[#FF6FAE]" />
           </h2>
-          <p className="text-xs font-medium text-slate-700 dark:text-slate-300">
+          <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
             Current subject marks recorded for this student
           </p>
         </div>
 
         {!student.marks || student.marks.length === 0 ? (
-          <p className="text-sm font-handwriting text-slate-700 dark:text-slate-300 py-4 text-center">
+          <p className="text-sm font-handwriting text-slate-600 dark:text-slate-300 py-4 text-center">
             No subject marks recorded yet. Add a score above.
           </p>
         ) : (
@@ -359,14 +361,14 @@ export default function StudentDetailsPage() {
             {student.marks.map((mark) => (
               <div
                 key={mark.id}
-                className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl border-[3px] border-black dark:border-white bg-white dark:bg-black sketch-shadow-sm gap-4"
+                className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl bg-white dark:bg-[#141824] sketch-shadow-sm gap-4"
               >
                 {editingMarkId === mark.id ? (
                   <form onSubmit={handleSubmitEditMark(onUpdateMark as any)} className="flex-1 flex flex-wrap items-center gap-3">
                     <Input className="h-9 w-40" {...registerEditMark("subject")} />
                     <Input className="h-9 w-28" type="number" {...registerEditMark("marks")} />
 
-                    <Button type="submit" size="sm" isLoading={isUpdatingMark}>
+                    <Button type="submit" size="sm" variant="pink" isLoading={isUpdatingMark}>
                       Save
                     </Button>
                     <Button type="button" size="sm" variant="outline" onClick={() => setEditingMarkId(null)}>
@@ -376,18 +378,18 @@ export default function StudentDetailsPage() {
                 ) : (
                   <>
                     <div>
-                      <h4 className="text-lg font-bold font-handwriting text-black dark:text-white">
+                      <h4 className="text-lg font-bold font-handwriting text-slate-900 dark:text-slate-100">
                         {mark.subject}
                       </h4>
-                      <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        Score: <span className="font-extrabold text-black dark:text-white">{mark.marks} / 100</span>
+                      <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                        Score: <span className="font-extrabold text-[#FF6FAE]">{mark.marks} / 100</span>
                       </p>
                     </div>
 
                     <div className="flex items-center gap-2">
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant="purple"
                         onClick={() => handleStartEditMark(mark)}
                         className="h-8 text-xs font-bold"
                       >
@@ -395,7 +397,7 @@ export default function StudentDetailsPage() {
                       </Button>
                       <Button
                         size="sm"
-                        variant="destructive"
+                        variant="coral"
                         onClick={() => onDeleteMark(mark.id)}
                         className="h-8 text-xs"
                       >
@@ -423,3 +425,4 @@ export default function StudentDetailsPage() {
     </div>
   );
 }
+

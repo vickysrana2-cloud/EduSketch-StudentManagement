@@ -65,21 +65,21 @@ export default function AddStudentPage() {
       <div className="flex items-center justify-between">
         <Link
           href="/students"
-          className="inline-flex items-center gap-2 text-sm font-bold text-black dark:text-white hover:underline transition"
+          className="inline-flex items-center gap-2 text-sm font-bold text-[#4D9FFF] hover:text-[#3B8EEB] transition-colors"
         >
           <ArrowLeft className="h-4 w-4" /> Back to Student Roster
         </Link>
       </div>
 
       {/* Sketch Card Form */}
-      <div className="relative rounded-3xl border-[3px] border-black dark:border-white bg-white dark:bg-black p-8 sketch-shadow rotate-sketch-sm">
+      <div className="relative rounded-3xl bg-[#FFF0F6] dark:bg-[#361726] p-8 sketch-shadow rotate-sketch-sm">
         <div className="tape-accent" />
 
-        <div className="pb-6 border-b-[3px] border-black dark:border-white space-y-2">
-          <h1 className="text-3xl font-extrabold font-handwriting text-black dark:text-white flex items-center gap-2">
-            Enroll New Student <DoodleSpark className="h-6 w-6 text-black dark:text-white" />
+        <div className="pb-6 space-y-2">
+          <h1 className="text-3xl font-extrabold font-handwriting text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            Enroll New Student <DoodleSpark className="h-6 w-6 text-[#FF6FAE]" />
           </h1>
-          <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+          <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
             Fill out personal & academic details to add a student to the database.
           </p>
         </div>
@@ -108,9 +108,10 @@ export default function AddStudentPage() {
             error={errors.age?.message}
           />
 
-          <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t-[3px] border-black dark:border-white">
+          <div className="flex flex-col sm:flex-row gap-4 pt-4">
             <Button
               type="submit"
+              variant="pink"
               isLoading={isLoading}
               className="flex-1 font-handwriting text-lg h-12"
             >
@@ -132,3 +133,4 @@ export default function AddStudentPage() {
     </div>
   );
 }
+

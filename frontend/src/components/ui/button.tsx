@@ -3,7 +3,19 @@ import { cn } from "@/lib/utils";
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
+  variant?:
+    | "default"
+    | "destructive"
+    | "outline"
+    | "secondary"
+    | "ghost"
+    | "link"
+    | "blue"
+    | "purple"
+    | "pink"
+    | "yellow"
+    | "green"
+    | "coral";
   size?: "default" | "sm" | "lg" | "icon";
   isLoading?: boolean;
 }
@@ -22,20 +34,34 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const baseStyles =
-      "inline-flex items-center justify-center rounded-xl font-bold font-sans transition-all focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 active:translate-y-0.5 border-[3px] border-black dark:border-white sketch-shadow-sm";
+      "inline-flex items-center justify-center rounded-xl font-bold font-sans transition-all duration-200 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 active:translate-y-0.5 sketch-shadow-sm hover:-translate-y-0.5";
 
     const variants = {
       default:
-        "bg-black text-white hover:bg-slate-800 dark:bg-white dark:text-black dark:hover:bg-slate-200",
+        "bg-[#4D9FFF] text-white hover:bg-[#3B8EEB] dark:bg-[#4D9FFF] dark:text-white shadow-[0_4px_12px_rgba(77,159,255,0.3)]",
       destructive:
-        "bg-black text-white hover:bg-slate-900 dark:bg-white dark:text-black",
+        "bg-[#FF8066] text-white hover:bg-[#E56C53] dark:bg-[#FF8066] dark:text-white shadow-[0_4px_12px_rgba(255,128,102,0.3)]",
       outline:
-        "bg-white text-black hover:bg-slate-100 dark:bg-black dark:text-white dark:hover:bg-slate-900",
+        "bg-slate-100 text-slate-800 hover:bg-[#EAF6FF] dark:bg-[#1e2538] dark:text-white dark:hover:bg-[#252f48]",
       secondary:
-        "bg-slate-200 text-black hover:bg-slate-300 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700",
+        "bg-[#F4EEFF] text-[#8B6DFF] hover:bg-[#EAE0FF] dark:bg-[#231B3C] dark:text-[#C5A7FF]",
       ghost:
-        "border-transparent sketch-shadow-none hover:bg-slate-200 dark:hover:bg-slate-800 text-black dark:text-white",
-      link: "border-transparent sketch-shadow-none text-black underline-offset-4 hover:underline dark:text-white",
+        "sketch-shadow-none hover:bg-[#EAF6FF] dark:hover:bg-[#112338] text-slate-700 dark:text-slate-200",
+      link: "sketch-shadow-none text-[#4D9FFF] underline-offset-4 hover:underline dark:text-[#8DD8FF]",
+      
+      // Dedicated Vibrant Children Colors
+      blue:
+        "bg-[#4D9FFF] text-white hover:bg-[#3B8EEB] shadow-[0_4px_12px_rgba(77,159,255,0.35)]",
+      purple:
+        "bg-[#8B6DFF] text-white hover:bg-[#7859F5] shadow-[0_4px_12px_rgba(139,109,255,0.35)]",
+      pink:
+        "bg-[#FF6FAE] text-white hover:bg-[#ED599B] shadow-[0_4px_12px_rgba(255,111,174,0.35)]",
+      yellow:
+        "bg-[#FFC83D] text-slate-900 hover:bg-[#EBB429] shadow-[0_4px_12px_rgba(255,200,61,0.35)]",
+      green:
+        "bg-[#48C78E] text-white hover:bg-[#36B27B] shadow-[0_4px_12px_rgba(72,199,142,0.35)]",
+      coral:
+        "bg-[#FF8066] text-white hover:bg-[#E66B51] shadow-[0_4px_12px_rgba(255,128,102,0.35)]",
     };
 
     const sizes = {
@@ -86,3 +112,4 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 Button.displayName = "Button";
 
 export { Button };
+
