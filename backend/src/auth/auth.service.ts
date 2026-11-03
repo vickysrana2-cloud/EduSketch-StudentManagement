@@ -24,6 +24,10 @@ import { InstitutionStatus } from '../institutions/enums/institution.enums';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import {
+  CurrentUserResponseDto,
+  InstitutionSummaryDto,
+} from './dto/current-user-response.dto';
 
 @Injectable()
 export class AuthService {
@@ -135,22 +139,21 @@ export class AuthService {
       );
     }
 
-    // 10. Generate access JWT (15m) and refresh JWT (7d)
+    // 10. Generate access token (15m)
     const institutionIdStr = user.institutionId
       ? (user.institutionId as any)._id?.toString() ||
         user.institutionId.toString()
       : null;
 
-    const tokens = await this.generateTokens({
+    const accessToken = await this.tokenService.generateAccessToken({
       _id: user._id.toString(),
       role: user.role,
       institutionId: institutionIdStr,
     });
 
-    // 11. Create refresh-token session through SessionsService
-    await this.sessionsService.createSession({
+    // 11. Create refresh-token session through SessionsService (Task 09: random token & hash)
+    const sessionResult = await this.sessionsService.createSession({
       userId: user._id.toString(),
-      refreshToken: tokens.refreshToken,
       ipAddress: metadata?.ipAddress,
       userAgent: metadata?.userAgent,
       expiresInDays: 7,
@@ -171,10 +174,10 @@ export class AuthService {
 
     // 12. Return safe user details (Never return passwordHash or refreshTokenHash)
     return {
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
+      accessToken,
+      refreshToken: sessionResult.rawRefreshToken,
       tokenType: 'Bearer',
-      expiresIn: tokens.expiresIn,
+      expiresIn: '15m',
       user: {
         id: user._id.toString(),
         name: user.name,
@@ -361,20 +364,153 @@ export class AuthService {
   }
 
   /**
-   * Refresh Token handler
+   * Refresh Token handler with Rotation & Reuse Detection (Task 09)
    */
-  async refreshTokens(refreshTokenDto: RefreshTokenDto): Promise<AuthTokens> {
-    const payload = await this.verifyRefreshToken(refreshTokenDto.refreshToken);
-    const user = await this.usersService.findUserById(payload.sub);
+  async refreshTokens(
+    rawRefreshToken: string,
+    metadata?: { ipAddress?: string; userAgent?: string },
+  ): Promise<{
+    accessToken: string;
+    refreshToken: string;
+    tokenType: string;
+    expiresIn: string;
+  }> {
+    // 1. Rotate session in Sessions collection (detects reuse & checks expiry)
+    const rotationResult = await this.sessionsService.rotateSession(
+      rawRefreshToken,
+      metadata,
+    );
 
-    if (!user || user.status !== UserStatus.ACTIVE) {
-      throw new UnauthorizedException('User no longer exists or is inactive');
+    // 2. Validate user account status (Requirement 11)
+    const user = await this.usersService.findUserById(rotationResult.userId);
+
+    if (!user) {
+      throw new UnauthorizedException('User account no longer exists');
     }
 
-    return await this.generateTokens({
+    if (user.status === UserStatus.SUSPENDED) {
+      throw new UnauthorizedException(
+        'Your account has been suspended. Please contact support.',
+      );
+    }
+
+    if (user.status === UserStatus.INACTIVE) {
+      throw new UnauthorizedException(
+        'Your account is inactive. Please contact your administrator.',
+      );
+    }
+
+    const institutionIdStr = user.institutionId
+      ? user.institutionId.toString()
+      : null;
+
+    // 3. Issue fresh 15m access token
+    const accessToken = await this.tokenService.generateAccessToken({
       _id: user._id.toString(),
       role: user.role,
-      institutionId: user.institutionId ? user.institutionId.toString() : null,
+      institutionId: institutionIdStr,
     });
+
+    return {
+      accessToken,
+      refreshToken: rotationResult.newRawRefreshToken,
+      tokenType: 'Bearer',
+      expiresIn: '15m',
+    };
+  }
+
+  /**
+   * Logout handler: revokes refresh token session and invalidates cookie (Requirement 3 & 8)
+   */
+  async logout(rawRefreshToken?: string): Promise<{ message: string }> {
+    if (rawRefreshToken) {
+      await this.sessionsService.revokeSessionByToken(rawRefreshToken);
+    }
+    return { message: 'Successfully logged out.' };
+  }
+
+  /**
+   * Logout from all devices: revokes all sessions belonging to the user (Requirement 7)
+   */
+  async logoutAll(userId: string): Promise<{ message: string }> {
+    await this.sessionsService.revokeAllUserSessions(userId);
+    return { message: 'Successfully logged out from all devices.' };
+  }
+
+  /**
+   * Retrieves active sessions for the current user
+   */
+  async getUserSessions(userId: string) {
+    return await this.sessionsService.getUserActiveSessions(userId);
+  }
+
+  /**
+   * Revokes a specific session for the current user
+   */
+  async revokeSession(sessionId: string, userId: string) {
+    await this.sessionsService.revokeSessionById(sessionId, userId);
+    return { message: 'Session revoked successfully.' };
+  }
+
+  /**
+   * Retrieves current authenticated user profile directly from MongoDB (Task 11)
+   * Ensures live, authoritative state rather than relying on stale JWT claims.
+   */
+  async getCurrentUser(userId: string): Promise<CurrentUserResponseDto> {
+    if (!Types.ObjectId.isValid(userId)) {
+      throw new UnauthorizedException('Invalid user identity in token');
+    }
+
+    const user = await this.userModel
+      .findById(userId)
+      .populate('institutionId', 'name code type status')
+      .exec();
+
+    // 9. Handle deleted or non-existent users
+    if (!user) {
+      throw new UnauthorizedException('User account no longer exists');
+    }
+
+    // 4 & 9. Handle suspended or inactive users
+    if (user.status === UserStatus.SUSPENDED) {
+      throw new UnauthorizedException(
+        'Your account has been suspended. Please contact support.',
+      );
+    }
+
+    if (user.status === UserStatus.INACTIVE) {
+      throw new UnauthorizedException(
+        'Your account is inactive. Please contact your administrator.',
+      );
+    }
+
+    // 5. Fetch current institution details where applicable (null for SUPER_ADMIN)
+    let institutionSummary: InstitutionSummaryDto | null = null;
+    if (user.role !== UserRole.SUPER_ADMIN && user.institutionId) {
+      const inst = user.institutionId as any;
+      if (inst && typeof inst === 'object' && inst._id) {
+        institutionSummary = {
+          id: inst._id.toString(),
+          name: inst.name,
+          code: inst.code,
+          type: inst.type,
+          status: inst.status,
+        };
+      }
+    }
+
+    // 6 & 7. Return safe user information (never expose passwordHash)
+    return {
+      id: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      status: user.status,
+      isEmailVerified: user.isEmailVerified,
+      institution: institutionSummary,
+      profileImage: user.profileImage || null,
+      lastLoginAt: user.lastLoginAt || null,
+      createdAt: user.createdAt,
+    };
   }
 }

@@ -17,10 +17,33 @@ export class Session {
   userId: Types.ObjectId;
 
   @Prop({
+    type: String,
     required: true,
     select: false, // Security: Never expose refresh-token hashes by default
+    index: true,
   })
   refreshTokenHash: string;
+
+  @Prop({
+    type: String,
+    required: true,
+    index: true,
+  })
+  tokenFamily: string;
+
+  @Prop({
+    type: Date,
+    required: true,
+    index: { expires: 0 }, // TTL index for automatic MongoDB background cleanup
+  })
+  expiresAt: Date;
+
+  @Prop({
+    type: Date,
+    default: null,
+    index: true,
+  })
+  revokedAt: Date | null;
 
   @Prop({ type: String, default: null })
   ipAddress: string | null;
@@ -28,22 +51,13 @@ export class Session {
   @Prop({ type: String, default: null })
   userAgent: string | null;
 
-  @Prop({ type: Boolean, default: false })
-  isRevoked: boolean;
-
-  @Prop({
-    type: Date,
-    required: true,
-    index: { expires: 0 }, // Automatic TTL cleanup upon expiration
-  })
-  expiresAt: Date;
-
   createdAt?: Date;
   updatedAt?: Date;
 }
 
 export const SessionSchema = SchemaFactory.createForClass(Session);
 
-// Additional compound index for user session queries
-SessionSchema.index({ userId: 1, isRevoked: 1 });
-
+// Compound indexes for optimal querying and token family breach containment
+SessionSchema.index({ userId: 1, revokedAt: 1 });
+SessionSchema.index({ tokenFamily: 1, revokedAt: 1 });
+SessionSchema.index({ refreshTokenHash: 1, revokedAt: 1 });
