@@ -142,6 +142,20 @@ export class UsersService {
   }
 
   /**
+   * Find a user by email and explicitly include passwordHash for login verification
+   */
+  async findUserByEmailWithPassword(
+    email: string,
+  ): Promise<UserDocument | null> {
+    const normalizedEmail = email.trim().toLowerCase();
+    return await this.userModel
+      .findOne({ email: normalizedEmail })
+      .select('+passwordHash')
+      .populate('institutionId', 'name code type status')
+      .exec();
+  }
+
+  /**
    * Find a user by their MongoDB ObjectId (passwordHash excluded)
    */
   async findUserById(id: string): Promise<UserDocument> {

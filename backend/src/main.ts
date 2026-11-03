@@ -34,10 +34,22 @@ async function bootstrap() {
       'Multi-School SaaS Management System Backend API. Includes Institution, User management, Subscriptions, and multi-tenant management.',
     )
     .setVersion('1.0.0')
+    .addTag('Authentication', 'JWT Authentication, login, registration, and token refresh operations')
     .addTag('Institutions', 'Operations for managing educational institutions')
     .addTag(
       'Users',
       'Operations for managing users across all roles (SUPER_ADMIN, ADMIN, TEACHER, STUDENT)',
+    )
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'JWT',
+        description: 'Enter your JWT Bearer token',
+        in: 'header',
+      },
+      'JWT-auth',
     )
     .addApiKey(
       {
