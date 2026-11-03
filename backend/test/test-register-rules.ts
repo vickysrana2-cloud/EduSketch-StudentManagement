@@ -166,6 +166,8 @@ async function runUnitVerification() {
     mockJwtService,
     mockConfigService,
     mockUsersService,
+    {} as any,
+    {} as any,
   );
 
   // A. Public registration as SUPER_ADMIN

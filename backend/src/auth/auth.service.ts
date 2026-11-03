@@ -15,6 +15,7 @@ import { Model, Types } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
 import { UsersService } from '../users/users.service';
 import { SessionsService } from './sessions.service';
+import { TokenService } from './token.service';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { Institution, InstitutionDocument } from '../institutions/schemas/institution.schema';
 import { AuthTokens, JwtPayload } from './interfaces/jwt-payload.interface';
@@ -37,84 +38,25 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly usersService: UsersService,
     private readonly sessionsService: SessionsService,
+    private readonly tokenService: TokenService,
   ) {}
 
   /**
-   * Generates both Access and Refresh tokens with separate secrets and lifetimes.
+   * Generates both Access and Refresh tokens via TokenService (Task 08)
    */
   async generateTokens(user: {
     _id: string;
-    email: string;
     role: UserRole;
     institutionId: string | null;
   }): Promise<AuthTokens> {
-    const payload: JwtPayload = {
-      sub: user._id,
-      email: user.email,
-      role: user.role,
-      institutionId: user.institutionId,
-    };
-
-    const issuer =
-      this.configService.get<string>('JWT_ISSUER') ||
-      'education-management-system';
-    const audience =
-      this.configService.get<string>('JWT_AUDIENCE') ||
-      'education-management-users';
-
-    const accessSecret = this.configService.get<string>('JWT_ACCESS_SECRET')!;
-    const accessExpiresIn =
-      this.configService.get<string>('JWT_ACCESS_EXPIRES_IN') || '15m';
-
-    const refreshSecret = this.configService.get<string>('JWT_REFRESH_SECRET')!;
-    const refreshExpiresIn =
-      this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') || '7d';
-
-    const [accessToken, refreshToken] = await Promise.all([
-      this.jwtService.signAsync(payload, {
-        secret: accessSecret,
-        expiresIn: accessExpiresIn as any,
-        issuer,
-        audience,
-      }),
-      this.jwtService.signAsync(payload, {
-        secret: refreshSecret,
-        expiresIn: refreshExpiresIn as any,
-        issuer,
-        audience,
-      }),
-    ]);
-
-    return {
-      accessToken,
-      refreshToken,
-      tokenType: 'Bearer',
-      expiresIn: accessExpiresIn,
-    };
+    return await this.tokenService.generateAuthTokens(user);
   }
 
   /**
-   * Cryptographically verifies a Refresh Token against JWT_REFRESH_SECRET
+   * Cryptographically verifies a Refresh Token via TokenService
    */
   async verifyRefreshToken(refreshToken: string): Promise<JwtPayload> {
-    try {
-      const refreshSecret = this.configService.get<string>('JWT_REFRESH_SECRET')!;
-      const issuer =
-        this.configService.get<string>('JWT_ISSUER') ||
-        'education-management-system';
-      const audience =
-        this.configService.get<string>('JWT_AUDIENCE') ||
-        'education-management-users';
-
-      return await this.jwtService.verifyAsync<JwtPayload>(refreshToken, {
-        secret: refreshSecret,
-        issuer,
-        audience,
-      });
-    } catch (error: any) {
-      this.logger.warn(`Invalid or expired refresh token: ${error.message}`);
-      throw new UnauthorizedException('Invalid or expired refresh token');
-    }
+    return await this.tokenService.verifyRefreshToken(refreshToken);
   }
 
   /**
@@ -201,7 +143,6 @@ export class AuthService {
 
     const tokens = await this.generateTokens({
       _id: user._id.toString(),
-      email: user.email,
       role: user.role,
       institutionId: institutionIdStr,
     });
@@ -432,7 +373,6 @@ export class AuthService {
 
     return await this.generateTokens({
       _id: user._id.toString(),
-      email: user.email,
       role: user.role,
       institutionId: user.institutionId ? user.institutionId.toString() : null,
     });

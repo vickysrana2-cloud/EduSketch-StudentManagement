@@ -3,6 +3,7 @@ import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 import { AuthService } from '../src/auth/auth.service';
 import { SessionsService } from '../src/auth/sessions.service';
+import { TokenService } from '../src/auth/token.service';
 import { LoginDto } from '../src/auth/dto/login.dto';
 import { UserRole, UserStatus } from '../src/users/enums/user.enums';
 
@@ -113,9 +114,9 @@ async function runLoginWorkflowTests() {
 
   let mockConfig: Record<string, string> = {
     BCRYPT_SALT_ROUNDS: '10',
-    JWT_ACCESS_SECRET: 'access_secret_123',
+    JWT_ACCESS_SECRET: 'a7f9b8c2d1e4f6a8b0c2d4e6f8a0b2c4d6e8f0a2b4c6d8e0f2a4b6c8d0e2f4a6',
     JWT_ACCESS_EXPIRES_IN: '15m',
-    JWT_REFRESH_SECRET: 'refresh_secret_123',
+    JWT_REFRESH_SECRET: 'e2f4a6c8d0b2a4f6e8c0d2b4a6f8e0c2d4b6a8f0e2c4d6b8a0f2e4c6d8b0a2f4',
     JWT_REFRESH_EXPIRES_IN: '7d',
     JWT_ISSUER: 'education-management-system',
     JWT_AUDIENCE: 'education-management-users',
@@ -130,6 +131,9 @@ async function runLoginWorkflowTests() {
     updateLastLogin: async (id: string) => mockUserModel.findByIdAndUpdate(id, { $set: { lastLoginAt: new Date() } }).exec(),
   };
 
+  const tokenService = new TokenService(mockJwtService, mockConfigService);
+  tokenService.onModuleInit();
+
   const authService = new AuthService(
     mockUserModel,
     {} as any,
@@ -137,6 +141,7 @@ async function runLoginWorkflowTests() {
     mockConfigService,
     mockUsersService,
     sessionsService,
+    tokenService,
   );
 
   // --------------------------------------------------------------------------

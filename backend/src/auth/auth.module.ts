@@ -5,6 +5,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { TokenService } from './token.service';
 import { SessionsService } from './sessions.service';
 import { Session, SessionSchema } from './schemas/session.schema';
 import { JwtStrategy } from './strategies/jwt.strategy';
@@ -41,6 +42,7 @@ import { InstitutionsModule } from '../institutions/institutions.module';
   controllers: [AuthController],
   providers: [
     AuthService,
+    TokenService,
     SessionsService,
     JwtStrategy,
     JwtAuthGuard,
@@ -48,6 +50,7 @@ import { InstitutionsModule } from '../institutions/institutions.module';
   ],
   exports: [
     AuthService,
+    TokenService,
     SessionsService,
     JwtStrategy,
     JwtAuthGuard,

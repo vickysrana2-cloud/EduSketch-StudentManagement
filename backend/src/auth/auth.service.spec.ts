@@ -8,6 +8,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { TokenService } from './token.service';
+import { SessionsService } from './sessions.service';
 import { UsersService } from '../users/users.service';
 import { User } from '../users/schemas/user.schema';
 import { Institution } from '../institutions/schemas/institution.schema';
@@ -93,6 +95,28 @@ describe('AuthService - Registration (Task 06)', () => {
             findUserByEmailWithPassword: jest.fn(),
             updateLastLogin: jest.fn(),
             createUser: jest.fn(),
+          },
+        },
+        {
+          provide: SessionsService,
+          useValue: {
+            createSession: jest.fn(),
+            revokeSession: jest.fn(),
+          },
+        },
+        {
+          provide: TokenService,
+          useValue: {
+            generateAccessToken: jest.fn().mockResolvedValue('mock.access.token'),
+            generateRefreshToken: jest.fn().mockResolvedValue('mock.refresh.token'),
+            generateAuthTokens: jest.fn().mockResolvedValue({
+              accessToken: 'mock.access.token',
+              refreshToken: 'mock.refresh.token',
+              tokenType: 'Bearer',
+              expiresIn: '15m',
+            }),
+            verifyRefreshToken: jest.fn(),
+            verifyAccessToken: jest.fn(),
           },
         },
       ],

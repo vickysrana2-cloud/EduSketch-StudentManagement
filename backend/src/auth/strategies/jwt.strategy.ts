@@ -23,6 +23,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       secretOrKey: accessSecret,
       issuer: configService.get<string>('JWT_ISSUER') || 'education-management-system',
       audience: configService.get<string>('JWT_AUDIENCE') || 'education-management-users',
+      algorithms: ['HS256'],
     });
   }
 
