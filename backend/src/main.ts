@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { MongoExceptionFilter } from './common/filters/mongo-exception.filter';
 
@@ -11,6 +12,9 @@ async function bootstrap() {
 
   // Global prefix for all API routes
   app.setGlobalPrefix('api');
+
+  // Cookie Parser middleware for HttpOnly cookies
+  app.use(cookieParser());
 
   // Global exception filter for MongoDB/Mongoose duplicate keys & data integrity errors
   app.useGlobalFilters(new MongoExceptionFilter());

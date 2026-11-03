@@ -1,14 +1,25 @@
 import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
   Injectable,
+  InternalServerErrorException,
   Logger,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
 import { UsersService } from '../users/users.service';
+import { SessionsService } from './sessions.service';
+import { User, UserDocument } from '../users/schemas/user.schema';
+import { Institution, InstitutionDocument } from '../institutions/schemas/institution.schema';
 import { AuthTokens, JwtPayload } from './interfaces/jwt-payload.interface';
 import { UserRole, UserStatus } from '../users/enums/user.enums';
+import { InstitutionStatus } from '../institutions/enums/institution.enums';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -18,15 +29,18 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
   constructor(
+    @InjectModel(User.name)
+    private readonly userModel: Model<UserDocument>,
+    @InjectModel(Institution.name)
+    private readonly institutionModel: Model<InstitutionDocument>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly usersService: UsersService,
+    private readonly sessionsService: SessionsService,
   ) {}
 
   /**
    * Generates both Access and Refresh tokens with separate secrets and lifetimes.
-   * Access Token: 15 minutes lifetime (using JWT_ACCESS_SECRET)
-   * Refresh Token: 7 days lifetime (using JWT_REFRESH_SECRET)
    */
   async generateTokens(user: {
     _id: string;
@@ -104,9 +118,12 @@ export class AuthService {
   }
 
   /**
-   * Authenticate user with email and password, returning JWT access & refresh tokens
+   * Secure User Login Workflow (Task 07)
    */
-  async login(loginDto: LoginDto): Promise<{
+  async login(
+    loginDto: LoginDto,
+    metadata?: { ipAddress?: string; userAgent?: string },
+  ): Promise<{
     accessToken: string;
     refreshToken: string;
     tokenType: string;
@@ -117,19 +134,26 @@ export class AuthService {
       email: string;
       role: UserRole;
       status: UserStatus;
+      isEmailVerified: boolean;
       institutionId: string | null;
+      lastLoginAt: Date | null;
     };
   }> {
+    // 1 & 2. Normalize email
     const normalizedEmail = loginDto.email.trim().toLowerCase();
 
-    // 1. Fetch user by email including the passwordHash
-    const user = await this.usersService.findUserByEmailWithPassword(normalizedEmail);
+    // 3 & 4. Find user by email and explicitly retrieve passwordHash
+    const user = await this.userModel
+      .findOne({ email: normalizedEmail })
+      .select('+passwordHash')
+      .populate('institutionId', 'name code type status')
+      .exec();
 
+    // 5 & 6. Constant-time check / generic error rejection
     if (!user) {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    // 2. Securely verify password with bcrypt
     const isPasswordValid = await bcrypt.compare(
       loginDto.password,
       user.passwordHash,
@@ -139,75 +163,264 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    // 3. Verify user account status
-    if (user.status !== UserStatus.ACTIVE) {
+    // 7. Check account status
+    if (user.status === UserStatus.SUSPENDED) {
       throw new UnauthorizedException(
-        `User account is ${user.status.toLowerCase()}. Access denied.`,
+        'Your account has been suspended. Please contact support.',
       );
     }
 
-    // 4. Update last login timestamp
-    await this.usersService.updateLastLogin(user._id.toString());
+    if (user.status === UserStatus.INACTIVE) {
+      throw new UnauthorizedException(
+        'Your account is inactive. Please contact your administrator.',
+      );
+    }
 
-    // 5. Generate Access & Refresh tokens
+    // 8. Check email verification policy
+    const requireEmailVerification =
+      this.configService.get<string>('REQUIRE_EMAIL_VERIFICATION') === 'true';
+
+    if (requireEmailVerification && !user.isEmailVerified) {
+      throw new UnauthorizedException(
+        'Please verify your email address before logging in.',
+      );
+    }
+
+    // 9. Role consistency check: Database role is ALWAYS authoritative
+    if (loginDto.role && loginDto.role !== user.role) {
+      throw new UnauthorizedException(
+        `Role mismatch: You attempted to sign in as ${loginDto.role}, but your account is registered as ${user.role}.`,
+      );
+    }
+
+    // 10. Generate access JWT (15m) and refresh JWT (7d)
+    const institutionIdStr = user.institutionId
+      ? (user.institutionId as any)._id?.toString() ||
+        user.institutionId.toString()
+      : null;
+
     const tokens = await this.generateTokens({
       _id: user._id.toString(),
       email: user.email,
       role: user.role,
-      institutionId: user.institutionId ? user.institutionId.toString() : null,
+      institutionId: institutionIdStr,
     });
 
-    this.logger.log(`User '${user.email}' (${user.role}) logged in successfully.`);
+    // 11. Create refresh-token session through SessionsService
+    await this.sessionsService.createSession({
+      userId: user._id.toString(),
+      refreshToken: tokens.refreshToken,
+      ipAddress: metadata?.ipAddress,
+      userAgent: metadata?.userAgent,
+      expiresInDays: 7,
+    });
 
+    // 14. Record lastLoginAt after successful login
+    const updatedUser = await this.userModel
+      .findByIdAndUpdate(
+        user._id,
+        { $set: { lastLoginAt: new Date() } },
+        { new: true },
+      )
+      .exec();
+
+    this.logger.log(
+      `Successful login: '${user.email}' (${user.role}) from IP: ${metadata?.ipAddress || 'unknown'}`,
+    );
+
+    // 12. Return safe user details (Never return passwordHash or refreshTokenHash)
     return {
-      ...tokens,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      tokenType: 'Bearer',
+      expiresIn: tokens.expiresIn,
       user: {
         id: user._id.toString(),
         name: user.name,
         email: user.email,
         role: user.role,
         status: user.status,
-        institutionId: user.institutionId ? user.institutionId.toString() : null,
+        isEmailVerified: user.isEmailVerified,
+        institutionId: institutionIdStr,
+        lastLoginAt: updatedUser?.lastLoginAt || new Date(),
       },
     };
   }
 
   /**
-   * Foundation register handler
+   * Secure User Registration
    */
-  async register(registerDto: RegisterDto): Promise<Record<string, any>> {
-    this.logger.log(`Registration attempt for ${registerDto.email}`);
-    const user = await this.usersService.createUser({
-      name: registerDto.name,
-      email: registerDto.email,
-      password: registerDto.password,
-      role: registerDto.role,
-      institutionId: registerDto.institutionId,
-      profileImage: registerDto.profileImage,
-    });
-
-    const tokens = await this.generateTokens({
-      _id: user._id.toString(),
-      email: user.email,
-      role: user.role,
-      institutionId: user.institutionId ? user.institutionId.toString() : null,
-    });
-
-    return {
-      ...tokens,
-      user: {
-        id: user._id.toString(),
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        status: user.status,
-        institutionId: user.institutionId ? user.institutionId.toString() : null,
-      },
+  async register(
+    registerDto: RegisterDto,
+    currentUser?: { userId: string; email: string; role: UserRole; institutionId: string | null },
+  ): Promise<{
+    message: string;
+    user: {
+      id: string;
+      name: string;
+      email: string;
+      role: UserRole;
+      status: UserStatus;
+      isEmailVerified: boolean;
+      institution: {
+        id: string;
+        name: string;
+        code: string;
+        status: InstitutionStatus;
+      };
+      createdAt: Date;
     };
+  }> {
+    if (registerDto.role === UserRole.SUPER_ADMIN) {
+      throw new ForbiddenException(
+        'Unauthorized role assignment: Registration as SUPER_ADMIN is strictly prohibited via public or standard API endpoints.',
+      );
+    }
+
+    if (registerDto.role === UserRole.ADMIN) {
+      if (!currentUser || currentUser.role !== UserRole.SUPER_ADMIN) {
+        throw new ForbiddenException(
+          'Unauthorized role assignment: Only an authenticated SUPER_ADMIN can register an Institution ADMIN. Public registration is not allowed.',
+        );
+      }
+    }
+
+    if (
+      registerDto.role === UserRole.TEACHER ||
+      registerDto.role === UserRole.STUDENT
+    ) {
+      if (!currentUser) {
+        throw new ForbiddenException(
+          'Institutional onboarding required: Direct public registration as TEACHER or STUDENT is disabled. An authorized Administrator must onboard users.',
+        );
+      }
+
+      if (
+        currentUser.role !== UserRole.ADMIN &&
+        currentUser.role !== UserRole.SUPER_ADMIN
+      ) {
+        throw new ForbiddenException(
+          'Unauthorized role assignment: Only an Administrator or Super Admin can onboard teachers or students.',
+        );
+      }
+    }
+
+    let effectiveInstitutionId: string;
+
+    if (currentUser?.role === UserRole.ADMIN) {
+      if (!currentUser.institutionId) {
+        throw new BadRequestException(
+          'Authenticated Admin does not belong to any valid institution.',
+        );
+      }
+      effectiveInstitutionId = currentUser.institutionId;
+    } else if (currentUser?.role === UserRole.SUPER_ADMIN) {
+      if (!registerDto.institutionId) {
+        throw new BadRequestException(
+          'institutionId is required when a Super Admin registers an institutional user.',
+        );
+      }
+      effectiveInstitutionId = registerDto.institutionId;
+    } else {
+      if (!registerDto.institutionId) {
+        throw new BadRequestException('institutionId is required.');
+      }
+      effectiveInstitutionId = registerDto.institutionId;
+    }
+
+    if (!Types.ObjectId.isValid(effectiveInstitutionId)) {
+      throw new BadRequestException(
+        `Invalid MongoDB ObjectId format for institutionId: '${effectiveInstitutionId}'`,
+      );
+    }
+
+    const institution = await this.institutionModel
+      .findById(effectiveInstitutionId)
+      .exec();
+
+    if (!institution) {
+      throw new NotFoundException(
+        `Institution with ID '${effectiveInstitutionId}' does not exist`,
+      );
+    }
+
+    if (institution.status !== InstitutionStatus.ACTIVE) {
+      throw new BadRequestException(
+        `Cannot register user: Institution '${institution.name}' is currently ${institution.status}. Only ACTIVE institutions can onboard users.`,
+      );
+    }
+
+    const normalizedEmail = registerDto.email.trim().toLowerCase();
+
+    const existingUser = await this.userModel
+      .findOne({ email: normalizedEmail })
+      .lean()
+      .exec();
+
+    if (existingUser) {
+      throw new ConflictException(
+        `A user with email address '${normalizedEmail}' already exists.`,
+      );
+    }
+
+    const saltRounds = parseInt(
+      this.configService.get<string>('BCRYPT_SALT_ROUNDS') || '12',
+      10,
+    );
+    const salt = await bcrypt.genSalt(saltRounds);
+    const passwordHash = await bcrypt.hash(registerDto.password, salt);
+
+    try {
+      const newUser = new this.userModel({
+        name: registerDto.name.trim(),
+        email: normalizedEmail,
+        passwordHash,
+        role: registerDto.role,
+        status: UserStatus.ACTIVE,
+        isEmailVerified: false,
+        institutionId: new Types.ObjectId(effectiveInstitutionId),
+        profileImage: registerDto.profileImage ?? null,
+        lastLoginAt: null,
+        passwordChangedAt: null,
+      });
+
+      const savedUser = await newUser.save();
+
+      this.logger.log(
+        `User successfully registered: '${savedUser.email}' as ${savedUser.role} in institution '${institution.name}' (${institution.code})`,
+      );
+
+      return {
+        message: 'User successfully registered.',
+        user: {
+          id: savedUser._id.toString(),
+          name: savedUser.name,
+          email: savedUser.email,
+          role: savedUser.role,
+          status: savedUser.status,
+          isEmailVerified: savedUser.isEmailVerified,
+          institution: {
+            id: institution._id.toString(),
+            name: institution.name,
+            code: institution.code,
+            status: institution.status,
+          },
+          createdAt: savedUser.createdAt!,
+        },
+      };
+    } catch (error: any) {
+      if (error?.code === 11000) {
+        throw new ConflictException(
+          `A user with email address '${normalizedEmail}' already exists.`,
+        );
+      }
+      this.logger.error(`Error saving registered user: ${error.message}`, error.stack);
+      throw new InternalServerErrorException('Failed to complete user registration');
+    }
   }
 
   /**
-   * Refresh Token handler: Generates a new access token
+   * Refresh Token handler
    */
   async refreshTokens(refreshTokenDto: RefreshTokenDto): Promise<AuthTokens> {
     const payload = await this.verifyRefreshToken(refreshTokenDto.refreshToken);
