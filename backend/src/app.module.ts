@@ -13,11 +13,18 @@ import { UsersModule } from './users/users.module';
     }),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        uri: configService.get<string>('MONGODB_URI'),
-        dbName:
-          configService.get<string>('MONGODB_DB_NAME') || 'studentManagement',
-      }),
+      useFactory: async (configService: ConfigService) => {
+        const isProduction = configService.get<string>('NODE_ENV') === 'production';
+        return {
+          uri: configService.get<string>('MONGODB_URI'),
+          dbName:
+            configService.get<string>('MONGODB_DB_NAME') || 'studentManagement',
+          // Safe index synchronization:
+          // In development/testing, autoIndex: true automatically creates schema indexes.
+          // In production, autoIndex: false prevents blocking database overhead upon container start.
+          autoIndex: !isProduction,
+        };
+      },
       inject: [ConfigService],
     }),
     InstitutionsModule,
