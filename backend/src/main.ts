@@ -27,16 +27,17 @@ async function bootstrap() {
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Multi-School Education Management System API')
     .setDescription(
-      'Multi-School SaaS Management System Backend API. Includes Institution, Subscriptions, and multi-tenant management.',
+      'Multi-School SaaS Management System Backend API. Includes Institution, User management, Subscriptions, and multi-tenant management.',
     )
     .setVersion('1.0.0')
     .addTag('Institutions', 'Operations for managing educational institutions')
+    .addTag('Users', 'Operations for managing users across all roles (SUPER_ADMIN, ADMIN, TEACHER, STUDENT)')
     .addApiKey(
       {
         type: 'apiKey',
         name: 'x-user-role',
         in: 'header',
-        description: 'Temporary Super Admin role header (must be SUPER_ADMIN)',
+        description: 'Temporary authorization header (must be SUPER_ADMIN or ADMIN)',
       },
       'x-user-role',
     )
