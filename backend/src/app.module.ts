@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { InstitutionsModule } from './institutions/institutions.module';
 
 @Module({
   imports: [
@@ -13,9 +14,12 @@ import { AppService } from './app.service';
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
         uri: configService.get<string>('MONGODB_URI'),
+        dbName:
+          configService.get<string>('MONGODB_DB_NAME') || 'studentManagement',
       }),
       inject: [ConfigService],
     }),
+    InstitutionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
