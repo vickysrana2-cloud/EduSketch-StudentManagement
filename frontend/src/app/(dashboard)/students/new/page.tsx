@@ -27,8 +27,7 @@ import {
 } from "lucide-react";
 
 import { useAppSelector } from "@/store/hooks";
-import { useCreateUserMutation, useUpdateUserStatusMutation } from "@/store/api/userApi";
-import { useCreateStudentProfileMutation } from "@/store/api/studentApi";
+import { useCreateStudentUserMutation } from "@/store/api/studentApi";
 import { useGetClassesQuery } from "@/store/api/academicApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,7 +53,9 @@ const personalSchema = z.object({
   admissionNumber: z
     .string()
     .min(3, "Admission number is required (min 3 chars)"),
-  dateOfBirth: z.string().min(4, "Date of birth is required"),
+  dateOfBirth: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Date of birth must be YYYY-MM-DD"),
   gender: z.enum(["MALE", "FEMALE", "OTHER"], {
     message: "Select a valid gender",
   }),
@@ -73,10 +74,10 @@ const guardianSchema = z.object({
   parentEmail: z.string().email("Invalid email").optional().or(z.literal("")),
 });
 
-// Step 4: Academic Enrollment Schema
+// Step 4: Class & Review Schema
 const academicSchema = z.object({
-  enrolledClass: z.string().min(1, "Please assign a grade/class"),
-  section: z.string().min(1, "Section required"),
+  classId: z.string().min(1, "Please select an assigned class"),
+  rollNumber: z.string().optional(),
 });
 
 // Full Combined Schema
@@ -90,8 +91,8 @@ type StudentFullFormData = z.infer<typeof fullStudentFormSchema>;
 const STEPS = [
   { id: 1, title: "Account", desc: "Credentials & Login", icon: Shield },
   { id: 2, title: "Personal", desc: "Bio & Address", icon: User },
-  { id: 3, title: "Guardian", desc: "Emergency Contacts", icon: Users },
-  { id: 4, title: "Class & Review", desc: "Admission Term", icon: GraduationCap },
+  { id: 3, title: "Parent", desc: "Guardian Contacts", icon: Users },
+  { id: 4, title: "Class & Review", desc: "Enrollment & Confirm", icon: GraduationCap },
 ];
 
 export default function NewStudentAdmissionPage() {
@@ -105,14 +106,18 @@ export default function NewStudentAdmissionPage() {
     studentId: string;
     name: string;
     admissionNumber: string;
+    className?: string;
   } | null>(null);
 
-  const [createUser, { isLoading: isCreatingUser }] = useCreateUserMutation();
-  const [createStudentProfile, { isLoading: isCreatingProfile }] =
-    useCreateStudentProfileMutation();
-  const [updateUserStatus] = useUpdateUserStatusMutation();
+  // Atomic creation mutation: POST /users/students
+  const [createStudentUser, { isLoading: isCreatingStudent }] =
+    useCreateStudentUserMutation();
 
-  const { data: classesData, isLoading: isLoadingClasses } = useGetClassesQuery();
+  // Load real classes from /classes
+  const { data: classesData, isLoading: isLoadingClasses } = useGetClassesQuery({
+    limit: 100,
+  });
+  const classesList = classesData?.items || classesData?.data || [];
 
   const {
     register,
@@ -140,20 +145,21 @@ export default function NewStudentAdmissionPage() {
       parentRelationship: "FATHER",
       parentPhone: "+1 (555) 000-0000",
       parentEmail: "",
-      enrolledClass: "Grade 10",
-      section: "A",
+      classId: "",
+      rollNumber: "",
     },
   });
 
   const formData = watch();
 
-  // Validate step-specific fields before advancing
+  // Step-wise validation before advancing
   const handleNextStep = async () => {
-    let fieldsToValidate: (keyof StudentFullFormData)[] = [];
+    let isValid = false;
+
     if (currentStep === 1) {
-      fieldsToValidate = ["name", "email", "password", "confirmPassword"];
+      isValid = await trigger(["name", "email", "password", "confirmPassword"]);
     } else if (currentStep === 2) {
-      fieldsToValidate = [
+      isValid = await trigger([
         "admissionNumber",
         "dateOfBirth",
         "gender",
@@ -161,20 +167,18 @@ export default function NewStudentAdmissionPage() {
         "city",
         "state",
         "postalCode",
-      ];
+      ]);
     } else if (currentStep === 3) {
-      fieldsToValidate = ["parentName", "parentRelationship", "parentPhone"];
+      isValid = await trigger([
+        "parentName",
+        "parentRelationship",
+        "parentPhone",
+        "parentEmail",
+      ]);
     }
 
-    const isStepValid = await trigger(fieldsToValidate);
-    if (isStepValid) {
+    if (isValid) {
       setCurrentStep((prev) => Math.min(prev + 1, 4));
-    } else {
-      toast({
-        type: "error",
-        title: "Incomplete Details",
-        description: "Please complete all required fields correctly before proceeding.",
-      });
     }
   };
 
@@ -182,577 +186,599 @@ export default function NewStudentAdmissionPage() {
     setCurrentStep((prev) => Math.max(prev - 1, 1));
   };
 
-  // Final Sequential Submission Flow
-  const onFinalSubmit = async (data: StudentFullFormData) => {
-    let createdUserId: string | null = null;
-
+  // Final Form Submission via POST /users/students
+  const onSubmit = async (data: StudentFullFormData) => {
     try {
-      // 1. Create Base User with role STUDENT
-      const userPayload = {
+      const selectedClass = classesList.find(
+        (c: any) => (c.id || c._id) === data.classId
+      );
+
+      const payload = {
         name: data.name.trim(),
         email: data.email.trim().toLowerCase(),
         password: data.password,
-        role: "STUDENT" as const,
-        institutionId:
-          currentUser?.institutionId || "67272714207198bb6c30f401",
-        status: "ACTIVE" as const,
-      };
-
-      const userRes = await createUser(userPayload).unwrap();
-      createdUserId = userRes?.id || userRes?._id || userRes?.user?.id;
-
-      if (!createdUserId) {
-        throw new Error("User account was created, but no valid user ID was returned.");
-      }
-
-      // 2. Create Student Profile linked to newly created userId
-      const dobIso = new Date(data.dateOfBirth).toISOString();
-
-      const profilePayload = {
-        userId: createdUserId,
         admissionNumber: data.admissionNumber.trim().toUpperCase(),
-        dateOfBirth: dobIso,
+        dateOfBirth: data.dateOfBirth,
         gender: data.gender,
-        bloodGroup: data.bloodGroup || null,
+        parentDetails: [
+          {
+            name: data.parentName.trim(),
+            relationship: data.parentRelationship,
+            phone: data.parentPhone.trim(),
+            email: data.parentEmail?.trim() || undefined,
+          },
+        ],
         address: {
           street: data.street.trim(),
           city: data.city.trim(),
           state: data.state.trim(),
           postalCode: data.postalCode.trim(),
         },
-        parentDetails: [
-          {
-            name: data.parentName.trim(),
-            relationship: data.parentRelationship,
-            phone: data.parentPhone.trim(),
-            email: data.parentEmail?.trim() || null,
-          },
-        ],
-        class: data.enrolledClass,
-        section: data.section,
-        status: "ACTIVE",
+        classId: data.classId,
+        academicYear: selectedClass?.academicYear || "2026-2027",
+        rollNumber: data.rollNumber?.trim() || undefined,
+        institutionId: currentUser?.institutionId || undefined,
       };
 
-      const profileRes = await createStudentProfile(profilePayload).unwrap();
-      const studentId =
-        profileRes?.data?.id ||
-        profileRes?.student?.id ||
-        (profileRes as any)?._id ||
-        (profileRes as any)?.id ||
-        createdUserId;
+      const result = await createStudentUser(payload).unwrap();
+
+      const profile = result?.profile || result?.studentProfile || result;
+      const user = result?.user || {};
+      const studentId = profile?._id || profile?.id || result?._id || result?.id;
+      const studentUserId = user?._id || user?.id || profile?.userId;
 
       toast({
         type: "success",
         title: "Student Admitted Successfully",
-        description: `${data.name} is now officially registered in ${data.enrolledClass}-${data.section}.`,
+        description: `${data.name} is now officially registered in ${selectedClass?.name || "the class"}.`,
       });
 
       setCreatedStudentRecord({
-        userId: createdUserId,
-        studentId: String(studentId),
+        userId: String(studentUserId || ""),
+        studentId: String(studentId || ""),
         name: data.name,
         admissionNumber: data.admissionNumber,
+        className: selectedClass?.name || "Class",
       });
     } catch (err: any) {
-      // 3. Best-effort rollback / cleanup if profile creation failed after user creation
-      if (createdUserId) {
-        try {
-          await updateUserStatus({
-            userId: createdUserId,
-            status: "INACTIVE",
-          }).unwrap();
-        } catch {
-          // Ignore secondary cleanup error
-        }
-      }
-
-      const errorMessage =
-        err?.data?.message ||
-        err?.message ||
-        "Failed to complete student admission. Please check if email or admission number already exists.";
-
       toast({
         type: "error",
-        title: "Admission Failed",
-        description: createdUserId
-          ? `${errorMessage} (The preliminary user account was marked INACTIVE for safety).`
-          : errorMessage,
+        title: "Student Admission Failed",
+        description:
+          err?.data?.message || err?.message || "Failed to create student account.",
       });
     }
   };
 
-  const isSubmitting = isCreatingUser || isCreatingProfile;
-
-  // Success Screen
+  // SUCCESS CONFIRMATION SCREEN
   if (createdStudentRecord) {
     return (
-      <div className="max-w-2xl mx-auto py-12 px-4 text-center space-y-6">
-        <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 shadow-xl p-8 sm:p-12 space-y-6">
-          <div className="h-20 w-20 mx-auto rounded-3xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-lg shadow-emerald-500/20 ring-8 ring-emerald-50 dark:ring-emerald-950/30">
+      <div className="max-w-xl mx-auto py-12 px-4 animate-in fade-in zoom-in-95 duration-300">
+        <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xl p-8 text-center space-y-6">
+          <div className="h-20 w-20 mx-auto rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-3xl shadow-inner">
             <CheckCircle2 className="h-10 w-10" />
           </div>
 
           <div className="space-y-2">
-            <Badge variant="green" className="px-3 py-1 text-xs">
-              Admission Confirmed
-            </Badge>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white pt-1">
-              {createdStudentRecord.name}
+            <h2 className="text-2xl font-bold font-handwriting text-slate-900 dark:text-white">
+              Student Admitted Successfully!
             </h2>
-            <p className="text-xs sm:text-sm text-slate-500 font-mono">
-              Admission ID: #{createdStudentRecord.admissionNumber}
+            <p className="text-sm text-slate-500 max-w-md mx-auto">
+              Student account, profile record, and initial academic enrollment were atomically provisioned.
             </p>
           </div>
 
-          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 max-w-md mx-auto leading-relaxed">
-            The student account and linked academic profile have been registered. The student can now sign in using their institutional email address.
-          </p>
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60 text-left space-y-2 text-xs">
+            <div className="flex justify-between py-1 border-b border-slate-200/60 dark:border-slate-700/60">
+              <span className="text-slate-500 font-semibold">Student Name:</span>
+              <strong className="text-slate-900 dark:text-white">
+                {createdStudentRecord.name}
+              </strong>
+            </div>
+            <div className="flex justify-between py-1 border-b border-slate-200/60 dark:border-slate-700/60">
+              <span className="text-slate-500 font-semibold">Admission Number:</span>
+              <span className="font-mono font-bold text-blue-600">
+                {createdStudentRecord.admissionNumber}
+              </span>
+            </div>
+            <div className="flex justify-between py-1">
+              <span className="text-slate-500 font-semibold">Assigned Class:</span>
+              <span className="font-semibold text-slate-700 dark:text-slate-300">
+                {createdStudentRecord.className}
+              </span>
+            </div>
+          </div>
 
-          <div className="pt-4 flex flex-col sm:flex-row gap-3 justify-center">
-            <Link href={`/students/${createdStudentRecord.studentId}`}>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+            <Link
+              href={
+                createdStudentRecord.studentId
+                  ? `/students/${createdStudentRecord.studentId}`
+                  : "/students"
+              }
+              className="w-full sm:w-auto"
+            >
               <Button
                 variant="default"
-                className="w-full sm:w-auto h-11 px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold gap-2 shadow-md shadow-blue-500/20"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl"
               >
-                <Eye className="h-4 w-4" /> View Student Profile
+                View Student Profile
               </Button>
             </Link>
 
-            <Button
-              variant="outline"
-              onClick={() => {
-                setCreatedStudentRecord(null);
-                setCurrentStep(1);
-              }}
-              className="w-full sm:w-auto h-11 px-6 rounded-xl text-xs font-semibold"
-            >
-              + Admit Another Student
-            </Button>
+            <Link href="/students" className="w-full sm:w-auto">
+              <Button variant="outline" className="w-full rounded-xl">
+                Return to Directory
+              </Button>
+            </Link>
           </div>
         </div>
       </div>
     );
   }
 
+  const selectedClassDetails = classesList.find(
+    (c: any) => (c.id || c._id) === formData.classId
+  );
+
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-16">
+    <div className="max-w-4xl mx-auto space-y-8 pb-16 animate-in fade-in duration-200">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex items-center justify-between">
         <div>
           <Link
             href="/students"
-            className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-blue-600 transition mb-2"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-blue-600 transition mb-1"
           >
-            <ArrowLeft className="h-4 w-4" /> Back to Student Roster
+            <ArrowLeft className="h-3.5 w-3.5" /> Back to Directory
           </Link>
-          <div className="flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-blue-100 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400">
-              <UserPlus className="h-5 w-5" />
-            </span>
-            <h1 className="text-2xl sm:text-3xl font-extrabold font-handwriting text-slate-900 dark:text-slate-100">
-              New Student Admission
-            </h1>
-            <DoodleSpark className="h-5 w-5 text-amber-500" />
-          </div>
-          <p className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">
-            Complete the 4-step registration workflow to enroll a new student.
+          <h1 className="text-2xl sm:text-3xl font-extrabold font-handwriting text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            Admit New Student <DoodleSpark className="h-5 w-5 text-amber-500" />
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+            Atomic provision: Login Account + Student Profile + Initial Class Enrollment
           </p>
         </div>
+        <Badge variant="blue" className="hidden sm:inline-flex">
+          Step {currentStep} of 4
+        </Badge>
       </div>
 
-      {/* Multi-Step Progress Indicator */}
-      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 p-4 sm:p-6 shadow-sm">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {STEPS.map((step) => {
-            const isCompleted = currentStep > step.id;
-            const isCurrent = currentStep === step.id;
-            const StepIcon = step.icon;
+      {/* Wizard Progress Steps Header */}
+      <div className="grid grid-cols-4 gap-2 sm:gap-4">
+        {STEPS.map((s) => {
+          const Icon = s.icon;
+          const isComplete = currentStep > s.id;
+          const isCurrent = currentStep === s.id;
 
-            return (
-              <div
-                key={step.id}
-                className={`flex items-center gap-3 p-2.5 rounded-xl transition ${
-                  isCurrent
-                    ? "bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-900/60"
-                    : isCompleted
-                    ? "bg-slate-50 dark:bg-slate-800/40 text-slate-700"
-                    : "opacity-60 text-slate-400"
-                }`}
-              >
-                <div
-                  className={`h-9 w-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 transition ${
-                    isCurrent
-                      ? "bg-blue-600 text-white shadow-md shadow-blue-500/20"
-                      : isCompleted
+          return (
+            <div
+              key={s.id}
+              className={`p-3 rounded-2xl border transition-all text-left flex flex-col justify-between ${
+                isCurrent
+                  ? "bg-blue-50/80 dark:bg-blue-950/40 border-blue-500 shadow-sm"
+                  : isComplete
+                  ? "bg-emerald-50/60 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800"
+                  : "bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 opacity-60"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1.5">
+                <span
+                  className={`h-7 w-7 rounded-xl flex items-center justify-center text-xs font-bold ${
+                    isComplete
                       ? "bg-emerald-500 text-white"
-                      : "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                      : isCurrent
+                      ? "bg-blue-600 text-white"
+                      : "bg-slate-200 dark:bg-slate-800 text-slate-600"
                   }`}
                 >
-                  {isCompleted ? <Check className="h-4 w-4" /> : <StepIcon className="h-4 w-4" />}
-                </div>
-                <div className="min-w-0">
-                  <p
-                    className={`text-xs font-bold truncate ${
-                      isCurrent ? "text-blue-600 dark:text-blue-400" : "text-slate-800 dark:text-slate-200"
-                    }`}
-                  >
-                    {step.title}
-                  </p>
-                  <p className="text-[10px] text-slate-400 truncate">{step.desc}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Main Form Container */}
-      <form
-        onSubmit={handleSubmit(onFinalSubmit)}
-        className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 shadow-sm p-6 sm:p-9 space-y-6"
-      >
-        {/* STEP 1: ACCOUNT SETUP */}
-        {currentStep === 1 && (
-          <div className="space-y-5 animate-in fade-in duration-200">
-            <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Step 1: Student Account Credentials
-              </h3>
-              <p className="text-xs text-slate-500">
-                These credentials will be used by the student to access their portal.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                label="Full Legal Name"
-                placeholder="e.g. Liam Michael Vance"
-                {...register("name")}
-                error={errors.name?.message}
-              />
-              <Input
-                label="Institutional Email Address"
-                type="email"
-                placeholder="liam.vance@school.edu"
-                {...register("email")}
-                error={errors.email?.message}
-              />
-              <Input
-                label="Initial Password (min 8 characters)"
-                type="password"
-                placeholder="••••••••"
-                {...register("password")}
-                error={errors.password?.message}
-              />
-              <Input
-                label="Confirm Password"
-                type="password"
-                placeholder="••••••••"
-                {...register("confirmPassword")}
-                error={errors.confirmPassword?.message}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* STEP 2: PERSONAL & ADDRESS */}
-        {currentStep === 2 && (
-          <div className="space-y-5 animate-in fade-in duration-200">
-            <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Step 2: Bio & Residential Address
-              </h3>
-              <p className="text-xs text-slate-500">
-                Official personal record details and postal address.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Input
-                label="Admission Number"
-                placeholder="ADM2026-001"
-                {...register("admissionNumber")}
-                error={errors.admissionNumber?.message}
-              />
-
-              <Input
-                label="Date of Birth"
-                type="date"
-                {...register("dateOfBirth")}
-                error={errors.dateOfBirth?.message}
-              />
-
-              <div className="space-y-1.5 text-xs">
-                <label className="font-semibold text-slate-700 dark:text-slate-300">
-                  Gender
-                </label>
-                <select
-                  {...register("gender")}
-                  className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                >
-                  <option value="MALE">Male</option>
-                  <option value="FEMALE">Female</option>
-                  <option value="OTHER">Other</option>
-                </select>
-                {errors.gender && (
-                  <p className="text-[11px] text-rose-500">{errors.gender.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-1.5 text-xs">
-                <label className="font-semibold text-slate-700 dark:text-slate-300">
-                  Blood Group
-                </label>
-                <select
-                  {...register("bloodGroup")}
-                  className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                >
-                  <option value="A+">A+</option>
-                  <option value="A-">A-</option>
-                  <option value="B+">B+</option>
-                  <option value="B-">B-</option>
-                  <option value="AB+">AB+</option>
-                  <option value="AB-">AB-</option>
-                  <option value="O+">O+</option>
-                  <option value="O-">O-</option>
-                </select>
-              </div>
-
-              <div className="sm:col-span-2">
-                <Input
-                  label="Street Address"
-                  placeholder="124 Academic Way"
-                  {...register("street")}
-                  error={errors.street?.message}
+                  {isComplete ? <Check className="h-3.5 w-3.5" /> : s.id}
+                </span>
+                <Icon
+                  className={`h-4 w-4 ${
+                    isCurrent
+                      ? "text-blue-600"
+                      : isComplete
+                      ? "text-emerald-500"
+                      : "text-slate-400"
+                  }`}
                 />
               </div>
-
-              <Input
-                label="City"
-                placeholder="Springfield"
-                {...register("city")}
-                error={errors.city?.message}
-              />
-
-              <Input
-                label="State / Province"
-                placeholder="IL"
-                {...register("state")}
-                error={errors.state?.message}
-              />
-
-              <Input
-                label="Postal Code"
-                placeholder="62701"
-                {...register("postalCode")}
-                error={errors.postalCode?.message}
-              />
+              <div>
+                <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight">
+                  {s.title}
+                </p>
+                <p className="text-[10px] text-slate-500 truncate hidden sm:block">
+                  {s.desc}
+                </p>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })}
+      </div>
 
-        {/* STEP 3: GUARDIAN DETAILS */}
-        {currentStep === 3 && (
-          <div className="space-y-5 animate-in fade-in duration-200">
-            <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Step 3: Parent & Guardian Contacts
-              </h3>
-              <p className="text-xs text-slate-500">
-                Primary emergency contact for institutional correspondence.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                label="Guardian Full Name"
-                placeholder="e.g. Richard Vance"
-                {...register("parentName")}
-                error={errors.parentName?.message}
-              />
-
-              <div className="space-y-1.5 text-xs">
-                <label className="font-semibold text-slate-700 dark:text-slate-300">
-                  Relationship
-                </label>
-                <select
-                  {...register("parentRelationship")}
-                  className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                >
-                  <option value="FATHER">Father</option>
-                  <option value="MOTHER">Mother</option>
-                  <option value="GUARDIAN">Legal Guardian</option>
-                  <option value="OTHER">Other</option>
-                </select>
+      {/* Main Wizard Form Card */}
+      <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-8">
+        <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-6">
+          {/* ================================================================= */}
+          {/* STEP 1: ACCOUNT CREDENTIALS                                       */}
+          {/* ================================================================= */}
+          {currentStep === 1 && (
+            <div className="space-y-5 animate-in fade-in duration-200">
+              <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-blue-600" />
+                  Account & Login Credentials
+                </h3>
+                <p className="text-xs text-slate-500">
+                  This creates the primary authentication record for student portal access.
+                </p>
               </div>
 
-              <Input
-                label="Contact Phone Number"
-                placeholder="+1 (555) 234-5678"
-                {...register("parentPhone")}
-                error={errors.parentPhone?.message}
-              />
+              <div className="space-y-4">
+                <Input
+                  label="Student Full Legal Name *"
+                  placeholder="e.g. Amit Sharma"
+                  {...register("name")}
+                  error={errors.name?.message}
+                />
 
-              <Input
-                label="Guardian Email Address (Optional)"
-                type="email"
-                placeholder="richard@example.com"
-                {...register("parentEmail")}
-                error={errors.parentEmail?.message}
-              />
+                <Input
+                  label="Student Login Email Address *"
+                  type="email"
+                  placeholder="e.g. amit@school.com"
+                  {...register("email")}
+                  error={errors.email?.message}
+                />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Input
+                    label="Initial Password *"
+                    type="password"
+                    placeholder="Min. 8 characters"
+                    {...register("password")}
+                    error={errors.password?.message}
+                  />
+
+                  <Input
+                    label="Confirm Initial Password *"
+                    type="password"
+                    placeholder="Re-enter password"
+                    {...register("confirmPassword")}
+                    error={errors.confirmPassword?.message}
+                  />
+                </div>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* STEP 4: CLASS & REVIEW */}
-        {currentStep === 4 && (
-          <div className="space-y-6 animate-in fade-in duration-200">
-            <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Step 4: Academic Class Allocation & Review
-              </h3>
-              <p className="text-xs text-slate-500">
-                Confirm class assignment and verify summary before creation.
-              </p>
+          {/* ================================================================= */}
+          {/* STEP 2: PERSONAL & BIO PROFILE                                    */}
+          {/* ================================================================= */}
+          {currentStep === 2 && (
+            <div className="space-y-5 animate-in fade-in duration-200">
+              <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <User className="h-4 w-4 text-blue-600" />
+                  Personal Information & Address
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Official student registration details, birth records, and residential address.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Input
+                    label="School Admission Number *"
+                    placeholder="e.g. ADM-2026-001"
+                    {...register("admissionNumber")}
+                    error={errors.admissionNumber?.message}
+                  />
+
+                  <Input
+                    label="Date of Birth (YYYY-MM-DD) *"
+                    type="date"
+                    {...register("dateOfBirth")}
+                    error={errors.dateOfBirth?.message}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Gender *
+                    </label>
+                    <select
+                      {...register("gender")}
+                      className="w-full h-10 px-3 rounded-xl text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
+                    >
+                      <option value="MALE">Male</option>
+                      <option value="FEMALE">Female</option>
+                      <option value="OTHER">Other</option>
+                    </select>
+                    {errors.gender && (
+                      <p className="text-xs text-rose-500 font-semibold">
+                        {errors.gender.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Blood Group (Optional)
+                    </label>
+                    <select
+                      {...register("bloodGroup")}
+                      className="w-full h-10 px-3 rounded-xl text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
+                    >
+                      <option value="A+">A+</option>
+                      <option value="A-">A-</option>
+                      <option value="B+">B+</option>
+                      <option value="B-">B-</option>
+                      <option value="O+">O+</option>
+                      <option value="O-">O-</option>
+                      <option value="AB+">AB+</option>
+                      <option value="AB-">AB-</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                    Residential Address
+                  </p>
+                  <div className="space-y-3">
+                    <Input
+                      label="Street Address *"
+                      placeholder="e.g. 124 Academic Way"
+                      {...register("street")}
+                      error={errors.street?.message}
+                    />
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <Input
+                        label="City *"
+                        placeholder="e.g. Springfield"
+                        {...register("city")}
+                        error={errors.city?.message}
+                      />
+                      <Input
+                        label="State / Province *"
+                        placeholder="e.g. Illinois"
+                        {...register("state")}
+                        error={errors.state?.message}
+                      />
+                      <Input
+                        label="Postal Code *"
+                        placeholder="e.g. 62701"
+                        {...register("postalCode")}
+                        error={errors.postalCode?.message}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
+          )}
 
-            {/* Class & Section Chooser */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5 text-xs">
-                <label className="font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                  <span>Enrolled Class</span>
-                  {isLoadingClasses && (
-                    <span className="text-[10px] text-blue-500">Loading classes...</span>
-                  )}
-                </label>
-                <select
-                  {...register("enrolledClass")}
-                  className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                >
-                  {classesData?.data && classesData.data.length > 0 ? (
-                    classesData.data.map((c) => (
-                      <option key={c.id} value={c.name}>
-                        {c.name}
-                      </option>
-                    ))
-                  ) : (
-                    <>
-                      <option value="Grade 9">Grade 9</option>
-                      <option value="Grade 10">Grade 10</option>
-                      <option value="Grade 11">Grade 11</option>
-                      <option value="Grade 12">Grade 12</option>
-                    </>
-                  )}
-                </select>
-                {errors.enrolledClass && (
-                  <p className="text-[11px] text-rose-500">{errors.enrolledClass.message}</p>
+          {/* ================================================================= */}
+          {/* STEP 3: PARENT / GUARDIAN CONTACTS                                */}
+          {/* ================================================================= */}
+          {currentStep === 3 && (
+            <div className="space-y-5 animate-in fade-in duration-200">
+              <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Users className="h-4 w-4 text-blue-600" />
+                  Primary Parent / Guardian Contact
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Emergency point of contact and official parent communications.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Input
+                    label="Guardian Full Legal Name *"
+                    placeholder="e.g. Rajesh Sharma"
+                    {...register("parentName")}
+                    error={errors.parentName?.message}
+                  />
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Relationship *
+                    </label>
+                    <select
+                      {...register("parentRelationship")}
+                      className="w-full h-10 px-3 rounded-xl text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
+                    >
+                      <option value="FATHER">Father</option>
+                      <option value="MOTHER">Mother</option>
+                      <option value="GUARDIAN">Legal Guardian</option>
+                      <option value="OTHER">Other</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Input
+                    label="Primary Contact Phone *"
+                    placeholder="e.g. +91 98765 43210"
+                    {...register("parentPhone")}
+                    error={errors.parentPhone?.message}
+                  />
+
+                  <Input
+                    label="Guardian Email (Optional)"
+                    type="email"
+                    placeholder="parent@example.com"
+                    {...register("parentEmail")}
+                    error={errors.parentEmail?.message}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ================================================================= */}
+          {/* STEP 4: CLASS ENROLLMENT & REVIEW                                 */}
+          {/* ================================================================= */}
+          {currentStep === 4 && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <GraduationCap className="h-4 w-4 text-blue-600" />
+                  Initial Class Enrollment & Review
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Select an active class from `/classes` to finalize the initial enrollment.
+                </p>
+              </div>
+
+              {/* Class Dropdown from /classes */}
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Select Academic Class & Section *
+                    </label>
+                    <select
+                      {...register("classId")}
+                      className="w-full h-10 px-3 rounded-xl text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
+                    >
+                      <option value="">-- Choose Class from Curriculum --</option>
+                      {classesList.map((c: any) => (
+                        <option key={c.id || c._id} value={c.id || c._id}>
+                          {c.name} (Grade {c.grade}-{c.section}) • Term {c.academicYear} • Cap: {c.studentCount || 0}/{c.capacity || 40}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.classId && (
+                      <p className="text-xs text-rose-500 font-semibold">
+                        {errors.classId.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <Input
+                    label="Class Roll Number (Optional)"
+                    placeholder="e.g. 12 (Auto-assigned if blank)"
+                    {...register("rollNumber")}
+                    error={errors.rollNumber?.message}
+                  />
+                </div>
+
+                {selectedClassDetails && (
+                  <div className="p-3.5 rounded-2xl bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-900/60 flex items-center justify-between text-xs">
+                    <div>
+                      <p className="font-bold text-blue-900 dark:text-blue-200">
+                        Selected: {selectedClassDetails.name}
+                      </p>
+                      <p className="text-blue-700/80 dark:text-blue-300/80 mt-0.5">
+                        Grade {selectedClassDetails.grade} • Section {selectedClassDetails.section} • Session {selectedClassDetails.academicYear}
+                      </p>
+                    </div>
+                    <Badge variant="blue">
+                      Enrolled: {selectedClassDetails.studentCount || 0} / {selectedClassDetails.capacity || 40}
+                    </Badge>
+                  </div>
                 )}
               </div>
 
-              <div className="space-y-1.5 text-xs">
-                <label className="font-semibold text-slate-700 dark:text-slate-300">
-                  Assigned Section
-                </label>
-                <select
-                  {...register("section")}
-                  className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                >
-                  <option value="A">Section A</option>
-                  <option value="B">Section B</option>
-                  <option value="C">Section C</option>
-                </select>
-              </div>
-            </div>
+              {/* Complete Review Summary */}
+              <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800 space-y-4">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  Admission Summary Review
+                </h4>
 
-            {/* Summary Review Card */}
-            <div className="rounded-2xl bg-slate-50 dark:bg-slate-800/50 p-5 space-y-3 text-xs border border-slate-200/80 dark:border-slate-800">
-              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
-                <span className="font-bold text-slate-800 dark:text-slate-200">
-                  Review Submission Summary
-                </span>
-                <Badge variant="blue">Role: STUDENT</Badge>
-              </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  <div className="space-y-1">
+                    <span className="text-slate-400 block">Student Identity</span>
+                    <strong className="text-slate-900 dark:text-white block">
+                      {formData.name || "N/A"}
+                    </strong>
+                    <span className="text-slate-500 font-mono">
+                      {formData.email} • {formData.admissionNumber}
+                    </span>
+                  </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-[11px]">
-                <div>
-                  <span className="text-slate-400 block">Student Name</span>
-                  <span className="font-semibold text-slate-800 dark:text-slate-200">
-                    {formData.name || "-"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block">Email</span>
-                  <span className="font-semibold text-slate-800 dark:text-slate-200 truncate block">
-                    {formData.email || "-"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block">Admission Number</span>
-                  <span className="font-mono font-bold text-blue-600">
-                    {formData.admissionNumber || "-"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block">Class & Sec</span>
-                  <span className="font-semibold text-slate-800 dark:text-slate-200">
-                    {formData.enrolledClass}-{formData.section}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block">Date of Birth</span>
-                  <span className="font-semibold text-slate-800 dark:text-slate-200">
-                    {formData.dateOfBirth} ({formData.gender})
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block">Primary Guardian</span>
-                  <span className="font-semibold text-slate-800 dark:text-slate-200">
-                    {formData.parentName || "-"} ({formData.parentPhone})
-                  </span>
+                  <div className="space-y-1">
+                    <span className="text-slate-400 block">Demographics</span>
+                    <strong className="text-slate-900 dark:text-white block">
+                      {formData.gender} • DOB: {formData.dateOfBirth}
+                    </strong>
+                    <span className="text-slate-500">
+                      {formData.city}, {formData.state} {formData.postalCode}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <span className="text-slate-400 block">Primary Guardian</span>
+                    <strong className="text-slate-900 dark:text-white block">
+                      {formData.parentName} ({formData.parentRelationship})
+                    </strong>
+                    <span className="text-slate-500">
+                      Phone: {formData.parentPhone}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <span className="text-slate-400 block">Target Enrollment</span>
+                    <strong className="text-blue-600 dark:text-blue-400 block">
+                      {selectedClassDetails?.name || "Class Selected"}
+                    </strong>
+                    <span className="text-slate-500">
+                      Roll: {formData.rollNumber || "Auto-assigned"}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Wizard Action Buttons */}
+          <div className="flex items-center justify-between pt-6 border-t border-slate-100 dark:border-slate-800">
+            {currentStep > 1 ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handlePrevStep}
+                disabled={isCreatingStudent}
+                className="gap-1.5 rounded-xl"
+              >
+                <ArrowLeft className="h-4 w-4" /> Previous
+              </Button>
+            ) : (
+              <Link href="/students">
+                <Button type="button" variant="outline" className="rounded-xl">
+                  Cancel
+                </Button>
+              </Link>
+            )}
+
+            {currentStep < 4 ? (
+              <Button
+                type="button"
+                variant="default"
+                onClick={handleNextStep}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold gap-1.5 rounded-xl ml-auto"
+              >
+                Continue <ArrowRight className="h-4 w-4" />
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                variant="default"
+                isLoading={isCreatingStudent}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold gap-1.5 rounded-xl ml-auto shadow-sm"
+              >
+                <Check className="h-4 w-4" /> Submit Admission
+              </Button>
+            )}
           </div>
-        )}
-
-        {/* Step Navigation Controls */}
-        <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
-          {currentStep > 1 ? (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handlePrevStep}
-              disabled={isSubmitting}
-              className="gap-2 h-10 px-4 text-xs font-semibold rounded-xl"
-            >
-              <ArrowLeft className="h-4 w-4" /> Previous Step
-            </Button>
-          ) : (
-            <div />
-          )}
-
-          {currentStep < 4 ? (
-            <Button
-              type="button"
-              variant="default"
-              onClick={handleNextStep}
-              className="gap-2 h-10 px-5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-md shadow-blue-500/20"
-            >
-              <span>Next Step</span> <ArrowRight className="h-4 w-4" />
-            </Button>
-          ) : (
-            <Button
-              type="submit"
-              variant="default"
-              disabled={isSubmitting}
-              className="gap-2 h-11 px-6 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-md shadow-emerald-500/20"
-            >
-              <Check className="h-4 w-4" />
-              <span>{isSubmitting ? "Enrolling Student..." : "Confirm & Admit Student"}</span>
-            </Button>
-          )}
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   );
 }

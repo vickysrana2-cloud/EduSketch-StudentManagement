@@ -1,6 +1,53 @@
 import { baseApi } from "./baseApi";
 import { Student, APIResponse } from "@/types";
 
+export interface CreateStudentUserPayload {
+  name: string;
+  email: string;
+  password?: string;
+  admissionNumber: string;
+  dateOfBirth: string;
+  gender: "MALE" | "FEMALE" | "OTHER";
+  parentDetails: Array<{
+    name: string;
+    relationship: "FATHER" | "MOTHER" | "GUARDIAN" | "OTHER";
+    phone: string;
+    email?: string;
+  }>;
+  address?: {
+    street: string;
+    city: string;
+    state: string;
+    postalCode: string;
+  };
+  classId: string;
+  academicYear?: string;
+  rollNumber?: string;
+  institutionId?: string;
+}
+
+export interface UpdateStudentProfilePayload {
+  id: string | number;
+  admissionNumber?: string;
+  dateOfBirth?: string;
+  gender?: "MALE" | "FEMALE" | "OTHER";
+  bloodGroup?: string | null;
+  address?: {
+    street?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
+  };
+  parentDetails?: Array<{
+    name: string;
+    relationship: string;
+    phone: string;
+    email?: string | null;
+    occupation?: string | null;
+  }>;
+  status?: string;
+}
+
 /**
  * Normalizes backend StudentProfile document (with populated userId)
  * into the frontend Student model.
@@ -72,7 +119,6 @@ export const studentApi = baseApi.injectEndpoints({
         return `/student-profiles?${params.toString()}`;
       },
       transformResponse: (response: any): APIResponse<Student[]> => {
-        // Backend returns: { items, total, page, limit, totalPages }
         const rawItems = Array.isArray(response?.items)
           ? response.items
           : Array.isArray(response?.data)
@@ -152,11 +198,23 @@ export const studentApi = baseApi.injectEndpoints({
     }),
 
     /**
+     * Atomic creation: User + StudentProfile + Initial Enrollment via POST /users/students.
+     */
+    createStudentUser: builder.mutation<any, CreateStudentUserPayload>({
+      query: (data) => ({
+        url: "/users/students",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["Student", "User", "Class"],
+    }),
+
+    /**
      * Updates student profile via PATCH /student-profiles/:id.
      */
     updateStudentProfile: builder.mutation<
       APIResponse<Student>,
-      { id: number | string; [key: string]: any }
+      UpdateStudentProfilePayload
     >({
       query: ({ id, ...dto }) => ({
         url: `/student-profiles/${id}`,
@@ -174,7 +232,7 @@ export const studentApi = baseApi.injectEndpoints({
      */
     updateStudent: builder.mutation<
       APIResponse<Student>,
-      { id: number | string; name?: string; email?: string; age?: number; [key: string]: any }
+      { id: number | string; [key: string]: any }
     >({
       query: ({ id, ...data }) => ({
         url: `/student-profiles/${id}`,
@@ -215,6 +273,30 @@ export const studentApi = baseApi.injectEndpoints({
     }),
 
     /**
+     * Query student enrollments from /enrollments?studentId=:id
+     */
+    getStudentEnrollments: builder.query<
+      any[],
+      { studentId?: string; classId?: string; academicYear?: string }
+    >({
+      query: (params) => {
+        const qp = new URLSearchParams();
+        if (params?.studentId) qp.set("studentId", params.studentId);
+        if (params?.classId) qp.set("classId", params.classId);
+        if (params?.academicYear) qp.set("academicYear", params.academicYear);
+        const qs = qp.toString();
+        return `/enrollments${qs ? `?${qs}` : ""}`;
+      },
+      transformResponse: (res: any) => {
+        if (Array.isArray(res)) return res;
+        if (Array.isArray(res?.items)) return res.items;
+        if (Array.isArray(res?.data)) return res.data;
+        return [];
+      },
+      providesTags: ["Student"],
+    }),
+
+    /**
      * Deletes / archives student profile.
      */
     deleteStudent: builder.mutation<APIResponse, number | string>({
@@ -231,9 +313,11 @@ export const {
   useGetStudentsQuery,
   useGetStudentByIdQuery,
   useGetMyStudentProfileQuery,
+  useCreateStudentUserMutation,
   useUpdateStudentProfileMutation,
   useUpdateStudentMutation,
   useCreateStudentMutation,
   useCreateStudentProfileMutation,
+  useGetStudentEnrollmentsQuery,
   useDeleteStudentMutation,
 } = studentApi;

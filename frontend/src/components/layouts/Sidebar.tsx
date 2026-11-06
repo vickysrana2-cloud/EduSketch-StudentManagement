@@ -14,6 +14,7 @@ import {
   FileSpreadsheet,
   Settings,
   Building2,
+  UserCheck,
   ChevronLeft,
   ChevronRight,
   LogOut,
@@ -65,6 +66,15 @@ const navItems: NavItem[] = [
     color: "#FF6FAE",
     bgColor: "#FFF0F6",
     borderColor: "#FFB3D1",
+  },
+  {
+    name: "Enrollments",
+    href: "/enrollments",
+    icon: <UserCheck className="h-5 w-5" />,
+    roles: ["SUPER_ADMIN", "ADMIN", "TEACHER"],
+    color: "#4D9FFF",
+    bgColor: "#EAF6FF",
+    borderColor: "#A3D0FF",
   },
   {
     name: "Teachers",
