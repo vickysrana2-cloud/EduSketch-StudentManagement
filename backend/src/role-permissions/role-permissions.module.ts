@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { RolePermissionsController } from './role-permissions.controller';
 import { RolePermissionsService } from './role-permissions.service';
@@ -10,7 +10,9 @@ import { RolesModule } from '../roles/roles.module';
 import { PermissionsModule } from '../permissions/permissions.module';
 import { InstitutionsModule } from '../institutions/institutions.module';
 import { AuthModule } from '../auth/auth.module';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
 
+@Global()
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -22,8 +24,8 @@ import { AuthModule } from '../auth/auth.module';
     AuthModule,
   ],
   controllers: [RolePermissionsController],
-  providers: [RolePermissionsService],
-  exports: [RolePermissionsService, MongooseModule],
+  providers: [RolePermissionsService, PermissionsGuard],
+  exports: [RolePermissionsService, PermissionsGuard, MongooseModule],
 })
 export class RolePermissionsModule {}
 

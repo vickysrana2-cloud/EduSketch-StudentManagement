@@ -157,6 +157,12 @@ export const INITIAL_ROLE_PERMISSIONS_POLICY: Record<UserRole, string[]> = {
 export class RolePermissionsService {
   private readonly logger = new Logger(RolePermissionsService.name);
 
+  // In-memory cache for ultra-fast permission checks (Task 17 Requirement 3 & 4)
+  private readonly permissionCache = new Map<
+    string,
+    { permissions: string[]; expiry: number }
+  >();
+
   constructor(
     @InjectModel(RolePermission.name)
     private readonly rolePermissionModel: Model<RolePermissionDocument>,
@@ -251,6 +257,7 @@ export class RolePermissionsService {
       this.logger.log(
         `Updated RolePermission: Role '${role.name}', Permission '${permission.name}', Institution: ${targetInstitutionId || 'SYSTEM'}, Allowed: ${isAllowed}`,
       );
+      this.clearPermissionCache();
       return updated;
     }
 
@@ -265,6 +272,7 @@ export class RolePermissionsService {
     this.logger.log(
       `Assigned RolePermission: Role '${role.name}', Permission '${permission.name}', Institution: ${targetInstitutionId || 'SYSTEM'}, Allowed: ${isAllowed}`,
     );
+    this.clearPermissionCache();
     return saved;
   }
 
@@ -318,6 +326,8 @@ export class RolePermissionsService {
       `Revoked RolePermission: Role '${roleIdStr}', Permission '${permissionIdStr}', Institution: ${institutionIdStr || 'SYSTEM'}`,
     );
 
+    this.clearPermissionCache();
+
     return { message: 'Role-permission mapping revoked successfully.' };
   }
 
@@ -365,6 +375,57 @@ export class RolePermissionsService {
 
     // Return only active and allowed permissions
     return Array.from(mappingMap.values()).filter((m) => m.isAllowed);
+  }
+
+  /**
+   * High-performance permission resolver for PermissionsGuard (Task 17 Requirement 2, 3, 4, 5)
+   * Resolves permission string names for a role and optional institution with short-TTL caching
+   * and immediate invalidation on policy mutation.
+   */
+  async getEffectivePermissions(
+    roleName: UserRole,
+    institutionIdStr?: string | null,
+  ): Promise<string[]> {
+    const cacheKey = `${roleName}:${institutionIdStr || 'GLOBAL'}`;
+    const cached = this.permissionCache.get(cacheKey);
+    const now = Date.now();
+
+    if (cached && cached.expiry > now) {
+      return cached.permissions;
+    }
+
+    const role = await this.roleModel.findOne({ name: roleName }).exec();
+    if (!role) {
+      return [];
+    }
+
+    const mappings = await this.getPermissionsByRole(
+      role._id.toString(),
+      institutionIdStr,
+    );
+
+    const permissionNames: string[] = [];
+    for (const mapping of mappings) {
+      const permObj = mapping.permissionId as any;
+      if (permObj && permObj.name) {
+        permissionNames.push(permObj.name);
+      }
+    }
+
+    // Cache results for 60 seconds (high performance, self-healing)
+    this.permissionCache.set(cacheKey, {
+      permissions: permissionNames,
+      expiry: now + 60 * 1000,
+    });
+
+    return permissionNames;
+  }
+
+  /**
+   * Invalidate in-memory permission cache (Task 17 Requirement 4)
+   */
+  clearPermissionCache(): void {
+    this.permissionCache.clear();
   }
 
   /**
@@ -426,6 +487,8 @@ export class RolePermissionsService {
     this.logger.log(
       `Role-Permissions seeding complete: ${created} created, ${updated} verified/updated (Total Policies: ${totalPolicies})`,
     );
+
+    this.clearPermissionCache();
 
     return { created, updated, totalPolicies };
   }
