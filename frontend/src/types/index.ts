@@ -1,3 +1,30 @@
+/**
+ * Root Types Barrel Export
+ * Preserves legacy types for backward compatibility with existing UI components
+ * while re-exporting the comprehensive strongly-typed backend API contracts.
+ */
+
+export * from "./api.types";
+export * from "./auth.types";
+export * from "./user.types";
+export * from "./institution.types";
+export * from "./role.types";
+export * from "./permission.types";
+export * from "./session.types";
+export * from "./student.types";
+export * from "./teacher.types";
+export * from "./class.types";
+export * from "./subject.types";
+export * from "./enrollment.types";
+export * from "./dashboard.types";
+
+// ==========================================
+// Backward-Compatibility Aliases for UI
+// ==========================================
+
+import { UserRole } from "./user.types";
+import { PaginationMeta } from "./api.types";
+
 export type Role = "SUPER_ADMIN" | "ADMIN" | "TEACHER" | "STUDENT";
 
 export interface User {
@@ -5,7 +32,7 @@ export interface User {
   name: string;
   email: string;
   role: Role;
-  avatar?: string;
+  avatar?: string | null;
 }
 
 export interface Mark {
@@ -17,7 +44,7 @@ export interface Mark {
 }
 
 export interface Student {
-  id: number;
+  id: number | string;
   name: string;
   email: string;
   age: number;
@@ -29,7 +56,7 @@ export interface Student {
 }
 
 export interface Teacher {
-  id: number;
+  id: number | string;
   name: string;
   email: string;
   phone?: string;
@@ -39,22 +66,22 @@ export interface Teacher {
 }
 
 export interface AcademicSession {
-  id: number;
+  id: number | string;
   year: string;
   isCurrent: boolean;
 }
 
 export interface ClassItem {
-  id: number;
+  id: number | string;
   name: string;
   sections: string[];
 }
 
 export interface Subject {
-  id: number;
+  id: number | string;
   name: string;
   code: string;
-  classId?: number;
+  classId?: number | string;
 }
 
 export interface Pagination {
