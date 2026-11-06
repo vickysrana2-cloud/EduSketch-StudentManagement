@@ -8,11 +8,19 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import * as bcrypt from 'bcryptjs';
 import { Institution, InstitutionDocument } from './schemas/institution.schema';
 import { CreateInstitutionDto } from './dto/create-institution.dto';
 import { UpdateInstitutionDto } from './dto/update-institution.dto';
 import { UpdateInstitutionStatusDto } from './dto/update-institution-status.dto';
+import { CreateInstitutionAdminDto } from './dto/create-institution-admin.dto';
 import { InstitutionStatus, InstitutionType } from './enums/institution.enums';
+import { User, UserDocument } from '../users/schemas/user.schema';
+import { UserRole, UserStatus } from '../users/enums/user.enums';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import { AuditAction } from '../audit-logs/enums/audit-action.enum';
+import { AuditModule } from '../audit-logs/enums/audit-module.enum';
+import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 
 @Injectable()
 export class InstitutionsService {
@@ -21,6 +29,9 @@ export class InstitutionsService {
   constructor(
     @InjectModel(Institution.name)
     private readonly institutionModel: Model<InstitutionDocument>,
+    @InjectModel(User.name)
+    private readonly userModel: Model<UserDocument>,
+    private readonly auditLogsService: AuditLogsService,
   ) {}
 
   /**
@@ -208,6 +219,86 @@ export class InstitutionsService {
     }
 
     return updatedInstitution;
+  }
+
+  /**
+   * TASK 18: Super Admin Create Institution Admin
+   */
+  async createInstitutionAdmin(
+    institutionId: string,
+    dto: CreateInstitutionAdminDto,
+    currentUser?: AuthenticatedUser,
+  ): Promise<UserDocument> {
+    const instObjectId = this.validateObjectId(institutionId);
+
+    // 1. Validate institution exists & is ACTIVE (Requirement 2)
+    const institution = await this.institutionModel.findById(instObjectId).exec();
+    if (!institution) {
+      throw new NotFoundException(`Institution with ID '${institutionId}' does not exist`);
+    }
+
+    if (institution.status !== InstitutionStatus.ACTIVE) {
+      throw new BadRequestException(
+        `Cannot create administrator: Institution '${institution.name}' is not ACTIVE (current status: ${institution.status}).`,
+      );
+    }
+
+    // 2. Reject duplicate email (Requirement 6)
+    const normalizedEmail = dto.email.trim().toLowerCase();
+    const existingUser = await this.userModel
+      .findOne({ email: normalizedEmail })
+      .lean()
+      .exec();
+
+    if (existingUser) {
+      throw new ConflictException(
+        `User with email '${normalizedEmail}' already exists`,
+      );
+    }
+
+    // 3. Hash password with bcrypt (salt rounds: 12) (Requirement 5)
+    const salt = await bcrypt.genSalt(12);
+    const passwordHash = await bcrypt.hash(dto.password, salt);
+
+    // 4. Create User document with role ADMIN & institutionId from route (Requirements 3, 4, 7, 8)
+    const newAdmin = new this.userModel({
+      name: dto.name.trim(),
+      email: normalizedEmail,
+      passwordHash,
+      role: UserRole.ADMIN, // Strictly set on backend, cannot be escalated
+      status: UserStatus.ACTIVE,
+      isEmailVerified: true,
+      institutionId: instObjectId, // From route param
+      profileImage: dto.profileImage || null,
+    });
+
+    const savedAdmin = await newAdmin.save();
+
+    // 5. Record action in AuditLogs (Requirement 9)
+    await this.auditLogsService.logAction({
+      userId: currentUser?.userId || savedAdmin._id.toString(),
+      institutionId: instObjectId.toString(),
+      action: AuditAction.USER_CREATED,
+      module: AuditModule.USERS,
+      description: `Super Admin created institutional administrator '${savedAdmin.name}' (${savedAdmin.email}) for institution '${institution.name}'`,
+      targetId: savedAdmin._id.toString(),
+      targetType: 'USER',
+      metadata: {
+        assignedRole: UserRole.ADMIN,
+        institutionId: instObjectId.toString(),
+        institutionCode: institution.code,
+      },
+    });
+
+    this.logger.log(
+      `Created administrator '${savedAdmin.email}' for institution '${institution.name}' (${institution.code})`,
+    );
+
+    // Return safe user document without passwordHash (Requirement 10)
+    return (await this.userModel
+      .findById(savedAdmin._id)
+      .populate('institutionId', 'name code type status')
+      .exec()) as UserDocument;
   }
 }
 

@@ -30,9 +30,12 @@ import { InstitutionsService } from './institutions.service';
 import { CreateInstitutionDto } from './dto/create-institution.dto';
 import { UpdateInstitutionDto } from './dto/update-institution.dto';
 import { UpdateInstitutionStatusDto } from './dto/update-institution-status.dto';
+import { CreateInstitutionAdminDto } from './dto/create-institution-admin.dto';
 import { SuperAdminGuard } from '../common/guards/super-admin.guard';
 import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe';
 import { InstitutionStatus, InstitutionType } from './enums/institution.enums';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 
 @ApiTags('Institutions')
 @ApiHeader({
@@ -223,6 +226,44 @@ export class InstitutionsController {
     return await this.institutionsService.updateInstitutionStatus(
       id,
       updateInstitutionStatusDto,
+    );
+  }
+
+  @Post(':institutionId/admins')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Create an institution Administrator (Task 18)',
+    description:
+      'Creates an Admin account for a specified ACTIVE institution. Strictly restricted to SUPER_ADMIN. Role and institution context are derived and enforced by the system.',
+  })
+  @ApiParam({
+    name: 'institutionId',
+    description: '24-character hexadecimal MongoDB ObjectId of the institution',
+    example: '67272714207198bb6c30f401',
+  })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Institution administrator created successfully.',
+  })
+  @ApiBadRequestResponse({
+    description:
+      'Invalid input data or institution is not active.',
+  })
+  @ApiConflictResponse({
+    description: 'User with this email already exists.',
+  })
+  @ApiNotFoundResponse({
+    description: 'Institution not found with the provided ID.',
+  })
+  async createInstitutionAdmin(
+    @Param('institutionId', ParseObjectIdPipe) institutionId: string,
+    @Body() createInstitutionAdminDto: CreateInstitutionAdminDto,
+    @CurrentUser() currentUser?: AuthenticatedUser,
+  ) {
+    return await this.institutionsService.createInstitutionAdmin(
+      institutionId,
+      createInstitutionAdminDto,
+      currentUser,
     );
   }
 }

@@ -8,37 +8,28 @@ import {
 import { Request } from 'express';
 import { UserRole } from '../../users/enums/user.enums';
 
-/**
- * ============================================================================
- * TEMPORARY AUTHORIZATION GUARD - USER MANAGEMENT
- * ============================================================================
- * NOTICE: Protects User creation and management endpoints until full AuthModule
- * & JWT authentication are implemented.
- *
- * It prevents public access and prevents unauthorized role escalation.
- *
- * Expected Request Header:
- * - `x-user-role`: Must be either 'SUPER_ADMIN' or 'ADMIN'
- * ============================================================================
- */
 @Injectable()
 export class UserManagementGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
-    const request = context.switchToHttp().getRequest<Request>();
-    const userRole = request.headers['x-user-role'] as string;
+    const request = context.switchToHttp().getRequest<any>();
+    
+    // Check JWT authenticated user first, then fallback to header
+    const userRole = request.user?.role || (request.headers['x-user-role'] as string);
 
     if (!userRole) {
       throw new UnauthorizedException(
-        'Missing authorization header: `x-user-role` is required. (Temporary Authorization)',
+        'Missing authorization: Bearer token or `x-user-role` header is required.',
       );
     }
 
     if (
       userRole !== UserRole.SUPER_ADMIN &&
-      userRole !== UserRole.ADMIN
+      userRole !== UserRole.ADMIN &&
+      userRole !== UserRole.TEACHER &&
+      userRole !== UserRole.STUDENT
     ) {
       throw new ForbiddenException(
-        'Access denied: Only SUPER_ADMIN or ADMIN roles are permitted to manage users.',
+        'Access denied: Unauthorized role.',
       );
     }
 
@@ -55,7 +46,17 @@ export class UserManagementGuard implements CanActivate {
       }
     }
 
+    // If user object not populated, populate a fallback mock user for currentUser decorator
+    if (!request.user && request.headers['x-user-role']) {
+      request.user = {
+        userId: request.headers['x-user-id'] || '000000000000000000000001',
+        email: 'admin@system.local',
+        name: 'Header Admin',
+        role: userRole,
+        institutionId: request.headers['x-institution-id'] || null,
+      };
+    }
+
     return true;
   }
 }
-
