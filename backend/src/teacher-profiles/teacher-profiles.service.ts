@@ -23,6 +23,7 @@ import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { AuditAction } from '../audit-logs/enums/audit-action.enum';
 import { AuditModule } from '../audit-logs/enums/audit-module.enum';
 import { TenantContextService } from '../common/tenancy/tenant-context.service';
+import { escapeRegex } from '../common/utils/regex.util';
 
 @Injectable()
 export class TeacherProfilesService {
@@ -157,7 +158,8 @@ export class TeacherProfilesService {
     }
 
     if (query.search && query.search.trim().length > 0) {
-      const searchRegex = new RegExp(query.search.trim(), 'i');
+      const sanitized = escapeRegex(query.search.trim());
+      const searchRegex = new RegExp(sanitized, 'i');
       filterQuery.$or = [
         { employeeId: searchRegex },
         { specialization: searchRegex },

@@ -18,7 +18,8 @@ import {
 } from "lucide-react";
 
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { setUser, setToken } from "@/store/slices/authSlice";
+import { setUser, setToken, setSession } from "@/store/slices/authSlice";
+import { useLoginMutation } from "@/store/api/authApi";
 import { toggleTheme } from "@/store/slices/uiSlice";
 import { useToast } from "@/components/ui/toast";
 import { Role } from "@/types";
@@ -47,25 +48,25 @@ const DEMO_PRESETS: Record<
   Role,
   { name: string; email: string; defaultPassword: string }
 > = {
-  ADMIN: {
-    name: "Dr. Eleanor Vance",
-    email: "admin@edusketch.edu",
-    defaultPassword: "password123",
+  SUPER_ADMIN: {
+    name: "Platform Director",
+    email: "superadmin@gmail.com",
+    defaultPassword: "superadmin123",
   },
-  STUDENT: {
-    name: "Leo Sterling",
-    email: "student@edusketch.edu",
-    defaultPassword: "password123",
+  ADMIN: {
+    name: "School Administrator",
+    email: "admin@school.com",
+    defaultPassword: "AdminPass@123",
   },
   TEACHER: {
-    name: "Prof. Arthur Pendelton",
-    email: "teacher@edusketch.edu",
-    defaultPassword: "password123",
+    name: "Faculty Instructor",
+    email: "teacher@school.com",
+    defaultPassword: "TeacherPass@123",
   },
-  SUPER_ADMIN: {
-    name: "Director Marcus Finch",
-    email: "superadmin@edusketch.edu",
-    defaultPassword: "password123",
+  STUDENT: {
+    name: "Enrolled Student",
+    email: "student@school.com",
+    defaultPassword: "StudentPass@123",
   },
 };
 
@@ -109,6 +110,7 @@ export default function LoginPage() {
   const dispatch = useAppDispatch();
   const { toast } = useToast();
   const { theme } = useAppSelector((state) => state.ui);
+  const [loginMutation] = useLoginMutation();
 
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
@@ -156,35 +158,59 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      // Simulate frontend authentication delay
-      await new Promise((resolve) => setTimeout(resolve, 850));
-
-      const preset = DEMO_PRESETS[data.role];
-      const mockUser = {
-        id: Date.now(),
-        name: preset?.name || data.email.split("@")[0],
+      const response = await loginMutation({
         email: data.email,
+        password: data.password,
         role: data.role,
+      }).unwrap();
+
+      const authenticatedUser = {
+        id: response.user.id,
+        name: response.user.name,
+        email: response.user.email,
+        role: response.user.role,
+        avatar: response.user.avatar,
       };
 
-      const mockToken = `mock-token-${data.role.toLowerCase()}-${Date.now()}`;
-
-      // Update Redux state for dashboard layout preview
-      dispatch(setUser(mockUser));
-      dispatch(setToken(mockToken));
+      dispatch(
+        setSession({
+          user: authenticatedUser,
+          accessToken: response.accessToken,
+        })
+      );
 
       toast({
         type: "success",
         title: "Signed In Successfully",
-        description: `Welcome back, ${mockUser.name} (${ROLE_OPTIONS.find((r) => r.id === data.role)?.name}).`,
+        description: `Welcome back, ${response.user.name} (${response.user.role}).`,
       });
 
-      router.push("/dashboard");
-    } catch {
+      // Redirect strictly according to verified role returned by backend
+      switch (response.user.role) {
+        case "SUPER_ADMIN":
+          router.push("/super-admin/dashboard");
+          break;
+        case "ADMIN":
+          router.push("/admin/dashboard");
+          break;
+        case "TEACHER":
+          router.push("/teacher/dashboard");
+          break;
+        case "STUDENT":
+          router.push("/student/dashboard");
+          break;
+        default:
+          router.push("/dashboard");
+      }
+    } catch (err: any) {
+      const errorMsg =
+        err?.data?.message ||
+        err?.message ||
+        "Invalid credentials or connection error. Please verify.";
       toast({
         type: "error",
-        title: "Sign In Error",
-        description: "Unable to process authentication. Please try again.",
+        title: "Sign In Failed",
+        description: Array.isArray(errorMsg) ? errorMsg.join(", ") : errorMsg,
       });
     } finally {
       setIsSubmitting(false);

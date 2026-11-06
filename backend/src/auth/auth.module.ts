@@ -13,11 +13,13 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from './guards/optional-jwt-auth.guard';
 import { UsersModule } from '../users/users.module';
 import { InstitutionsModule } from '../institutions/institutions.module';
+import { AuditLogsModule } from '../audit-logs/audit-logs.module';
 
 @Module({
   imports: [
     UsersModule,
     InstitutionsModule,
+    AuditLogsModule,
     MongooseModule.forFeature([{ name: Session.name, schema: SessionSchema }]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({

@@ -39,6 +39,7 @@ import { CreateStudentUserDto } from './dto/create-student-user.dto';
 import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
 import { UserRole, UserStatus } from './enums/user.enums';
 import { TenantContextService } from '../common/tenancy/tenant-context.service';
+import { escapeRegex } from '../common/utils/regex.util';
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 
 @Injectable()
@@ -788,7 +789,8 @@ export class UsersService {
     if (filter?.role) query.role = filter.role;
     if (filter?.status) query.status = filter.status;
     if (filter?.search) {
-      const searchRegex = new RegExp(filter.search.trim(), 'i');
+      const sanitized = escapeRegex(filter.search.trim());
+      const searchRegex = new RegExp(sanitized, 'i');
       query.$or = [{ name: searchRegex }, { email: searchRegex }];
     }
 
@@ -911,7 +913,8 @@ export class UsersService {
     if (filter?.role) query.role = filter.role;
     if (filter?.status) query.status = filter.status;
     if (filter?.search) {
-      const searchRegex = new RegExp(filter.search.trim(), 'i');
+      const sanitized = escapeRegex(filter.search.trim());
+      const searchRegex = new RegExp(sanitized, 'i');
       query.$or = [{ name: searchRegex }, { email: searchRegex }];
     }
 

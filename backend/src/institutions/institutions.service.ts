@@ -21,6 +21,7 @@ import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { AuditAction } from '../audit-logs/enums/audit-action.enum';
 import { AuditModule } from '../audit-logs/enums/audit-module.enum';
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
+import { escapeRegex } from '../common/utils/regex.util';
 
 @Injectable()
 export class InstitutionsService {
@@ -106,7 +107,8 @@ export class InstitutionsService {
       }
 
       if (filter?.search) {
-        const searchRegex = new RegExp(filter.search.trim(), 'i');
+        const sanitized = escapeRegex(filter.search.trim());
+        const searchRegex = new RegExp(sanitized, 'i');
         query.$or = [{ name: searchRegex }, { code: searchRegex }];
       }
 

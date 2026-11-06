@@ -17,6 +17,7 @@ import {
 import { UserRole } from '../users/enums/user.enums';
 import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { TenantContextService } from '../common/tenancy/tenant-context.service';
+import { escapeRegex } from '../common/utils/regex.util';
 
 @Injectable()
 export class AuditLogsService {
@@ -154,7 +155,8 @@ export class AuditLogsService {
 
     // 7. Text Search Filter
     if (query.search && query.search.trim().length > 0) {
-      const searchRegex = new RegExp(query.search.trim(), 'i');
+      const sanitized = escapeRegex(query.search.trim());
+      const searchRegex = new RegExp(sanitized, 'i');
       filterQuery.$or = [
         { description: searchRegex },
         { targetType: searchRegex },

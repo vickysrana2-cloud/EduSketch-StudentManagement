@@ -5,4 +5,5 @@ export * from './decorators/permissions.decorator';
 export * from './guards/permissions.guard';
 export * from './tenancy/tenant-context.service';
 export * from './tenancy/tenancy.module';
+export * from './utils/regex.util';
 

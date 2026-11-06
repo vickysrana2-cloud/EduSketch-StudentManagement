@@ -1,8 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
@@ -22,6 +22,7 @@ import {
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { toggleSidebar, setMobileSidebarOpen } from "@/store/slices/uiSlice";
 import { logout } from "@/store/slices/authSlice";
+import { useLogoutMutation } from "@/store/api/authApi";
 
 interface NavItem {
   name: string;
@@ -119,9 +120,22 @@ const navItems: NavItem[] = [
 
 export function Sidebar() {
   const currentPathname = usePathname() || "";
+  const router = useRouter();
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
   const { isMobileSidebarOpen } = useAppSelector((state) => state.ui);
+  const [logoutMutation] = useLogoutMutation();
+
+  const handleLogout = async () => {
+    try {
+      await logoutMutation().unwrap();
+    } catch {
+      // Proceed with local logout regardless of network error
+    }
+    dispatch(logout());
+    dispatch(setMobileSidebarOpen(false));
+    router.push("/login");
+  };
 
   const [isHovered, setIsHovered] = React.useState(false);
   const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -222,7 +236,7 @@ export function Sidebar() {
         {/* Footer Sign Out Button */}
         <div className="py-4 space-y-2">
           <button
-            onClick={() => dispatch(logout())}
+            onClick={handleLogout}
             className={`w-full flex items-center ${
               isHovered ? "justify-start gap-3 px-4" : "justify-center px-0"
             } py-2.5 rounded-xl bg-[#FFF1E8] dark:bg-[#3A1F1B] text-[#FF8066] hover:bg-[#FF8066] hover:text-white transition-all duration-200 sketch-shadow-sm text-xs font-bold font-handwriting`}
@@ -266,7 +280,7 @@ export function Sidebar() {
 
         <div className="pt-4">
           <button
-            onClick={() => dispatch(logout())}
+            onClick={handleLogout}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#FF8066] text-white font-bold text-sm sketch-shadow-sm hover:bg-[#E66B51] transition-all duration-200"
           >
             <LogOut className="h-4 w-4" />

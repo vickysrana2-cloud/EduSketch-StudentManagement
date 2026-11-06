@@ -6,6 +6,7 @@ import {
   InternalServerErrorException,
   Logger,
   NotFoundException,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -16,6 +17,9 @@ import * as bcrypt from 'bcryptjs';
 import { UsersService } from '../users/users.service';
 import { SessionsService } from './sessions.service';
 import { TokenService } from './token.service';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import { AuditAction } from '../audit-logs/enums/audit-action.enum';
+import { AuditModule } from '../audit-logs/enums/audit-module.enum';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { Institution, InstitutionDocument } from '../institutions/schemas/institution.schema';
 import { AuthTokens, JwtPayload } from './interfaces/jwt-payload.interface';
@@ -28,6 +32,10 @@ import {
   CurrentUserResponseDto,
   InstitutionSummaryDto,
 } from './dto/current-user-response.dto';
+
+// Pre-computed constant-time dummy hash used to neutralize user enumeration timing attacks (OWASP)
+const DUMMY_PASSWORD_HASH =
+  '$2a$12$e8YkYxL7xM8oZ4uR7kHw4.O4e2aZ0qW5yN6tP1vK8mJ3hG5fD9sSa';
 
 @Injectable()
 export class AuthService {
@@ -43,6 +51,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly sessionsService: SessionsService,
     private readonly tokenService: TokenService,
+    @Optional() private readonly auditLogsService?: AuditLogsService,
   ) {}
 
   /**
@@ -97,8 +106,31 @@ export class AuthService {
 
     // 5 & 6. Constant-time check / generic error rejection
     if (!user) {
+      // Neutralize user enumeration timing attack: simulate bcrypt comparison
+      await bcrypt.compare(loginDto.password, DUMMY_PASSWORD_HASH);
+      if (this.auditLogsService) {
+        await this.auditLogsService
+          .logAction({
+            userId: '000000000000000000000000',
+            institutionId: null,
+            action: AuditAction.LOGIN_FAILED,
+            module: AuditModule.USERS,
+            description: `Failed login attempt for non-existent email '${normalizedEmail}'`,
+            targetId: null,
+            targetType: 'USER',
+            ipAddress: metadata?.ipAddress,
+            userAgent: metadata?.userAgent,
+            metadata: { email: normalizedEmail, reason: 'USER_NOT_FOUND' },
+          })
+          .catch(() => {});
+      }
       throw new UnauthorizedException('Invalid email or password');
     }
+
+    const institutionIdStr = user.institutionId
+      ? (user.institutionId as any)._id?.toString() ||
+        user.institutionId.toString()
+      : null;
 
     const isPasswordValid = await bcrypt.compare(
       loginDto.password,
@@ -106,17 +138,65 @@ export class AuthService {
     );
 
     if (!isPasswordValid) {
+      if (this.auditLogsService) {
+        await this.auditLogsService
+          .logAction({
+            userId: user._id.toString(),
+            institutionId: institutionIdStr,
+            action: AuditAction.LOGIN_FAILED,
+            module: AuditModule.USERS,
+            description: `Failed login attempt (invalid password) for '${user.email}'`,
+            targetId: user._id.toString(),
+            targetType: 'USER',
+            ipAddress: metadata?.ipAddress,
+            userAgent: metadata?.userAgent,
+            metadata: { email: user.email, reason: 'INVALID_PASSWORD' },
+          })
+          .catch(() => {});
+      }
       throw new UnauthorizedException('Invalid email or password');
     }
 
     // 7. Check account status
     if (user.status === UserStatus.SUSPENDED) {
+      if (this.auditLogsService) {
+        await this.auditLogsService
+          .logAction({
+            userId: user._id.toString(),
+            institutionId: institutionIdStr,
+            action: AuditAction.LOGIN_FAILED,
+            module: AuditModule.USERS,
+            description: `Blocked login attempt for suspended user '${user.email}'`,
+            targetId: user._id.toString(),
+            targetType: 'USER',
+            ipAddress: metadata?.ipAddress,
+            userAgent: metadata?.userAgent,
+            metadata: { email: user.email, reason: 'ACCOUNT_SUSPENDED' },
+          })
+          .catch(() => {});
+      }
       throw new UnauthorizedException(
         'Your account has been suspended. Please contact support.',
       );
     }
 
     if (user.status === UserStatus.INACTIVE) {
+      if (this.auditLogsService) {
+        await this.auditLogsService
+          .logAction({
+            userId: user._id.toString(),
+            institutionId: institutionIdStr,
+            action: AuditAction.LOGIN_FAILED,
+            module: AuditModule.USERS,
+            description: `Blocked login attempt for inactive user '${user.email}'`,
+            targetId: user._id.toString(),
+            targetType: 'USER',
+            ipAddress: metadata?.ipAddress,
+            userAgent: metadata?.userAgent,
+            metadata: { email: user.email, reason: 'ACCOUNT_INACTIVE' },
+          })
+          .catch(() => {});
+      }
       throw new UnauthorizedException(
         'Your account is inactive. Please contact your administrator.',
       );
@@ -140,10 +220,6 @@ export class AuthService {
     }
 
     // 10. Generate access token (15m)
-    const institutionIdStr = user.institutionId
-      ? (user.institutionId as any)._id?.toString() ||
-        user.institutionId.toString()
-      : null;
 
     const accessToken = await this.tokenService.generateAccessToken({
       _id: user._id.toString(),
@@ -171,6 +247,23 @@ export class AuthService {
     this.logger.log(
       `Successful login: '${user.email}' (${user.role}) from IP: ${metadata?.ipAddress || 'unknown'}`,
     );
+
+    if (this.auditLogsService) {
+      await this.auditLogsService
+        .logAction({
+          userId: user._id.toString(),
+          institutionId: institutionIdStr,
+          action: AuditAction.LOGIN_SUCCESS,
+          module: AuditModule.USERS,
+          description: `User '${user.email}' logged in successfully`,
+          targetId: user._id.toString(),
+          targetType: 'USER',
+          ipAddress: metadata?.ipAddress,
+          userAgent: metadata?.userAgent,
+          metadata: { role: user.role },
+        })
+        .catch(() => {});
+    }
 
     // 12. Return safe user details (Never return passwordHash or refreshTokenHash)
     return {
@@ -434,6 +527,21 @@ export class AuthService {
    */
   async logoutAll(userId: string): Promise<{ message: string }> {
     await this.sessionsService.revokeAllUserSessions(userId);
+
+    if (this.auditLogsService) {
+      await this.auditLogsService
+        .logAction({
+          userId,
+          institutionId: null,
+          action: AuditAction.LOGOUT_ALL,
+          module: AuditModule.USERS,
+          description: `User logged out from all active device sessions`,
+          targetId: userId,
+          targetType: 'USER',
+        })
+        .catch(() => {});
+    }
+
     return { message: 'Successfully logged out from all devices.' };
   }
 

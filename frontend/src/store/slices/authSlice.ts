@@ -1,22 +1,18 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { User, Role } from "@/types";
+import { User } from "@/types";
+import { setAccessToken, clearAccessToken } from "@/lib/auth-session";
 
 interface AuthState {
   user: User | null;
-  token: string | null;
   isAuthenticated: boolean;
+  isInitialized: boolean;
   isLoading: boolean;
 }
 
 const initialState: AuthState = {
-  user: {
-    id: 1,
-    name: "Admin User",
-    email: "admin@school.com",
-    role: "ADMIN",
-  },
-  token: typeof window !== "undefined" ? localStorage.getItem("token") : null,
-  isAuthenticated: true,
+  user: null,
+  isAuthenticated: false,
+  isInitialized: false,
   isLoading: false,
 };
 
@@ -27,27 +23,49 @@ export const authSlice = createSlice({
     setUser: (state, action: PayloadAction<User | null>) => {
       state.user = action.payload;
       state.isAuthenticated = !!action.payload;
+      state.isInitialized = true;
+    },
+    setSession: (
+      state,
+      action: PayloadAction<{ user: User; accessToken: string }>
+    ) => {
+      state.user = action.payload.user;
+      state.isAuthenticated = true;
+      state.isInitialized = true;
+      state.isLoading = false;
+      // Access token stored in memory only
+      setAccessToken(action.payload.accessToken);
     },
     setToken: (state, action: PayloadAction<string | null>) => {
-      state.token = action.payload;
-      if (typeof window !== "undefined") {
-        if (action.payload) {
-          localStorage.setItem("token", action.payload);
-        } else {
-          localStorage.removeItem("token");
-        }
+      setAccessToken(action.payload);
+      if (!action.payload) {
+        state.isAuthenticated = false;
+        state.user = null;
       }
+    },
+    setLoading: (state, action: PayloadAction<boolean>) => {
+      state.isLoading = action.payload;
+    },
+    setInitialized: (state, action: PayloadAction<boolean>) => {
+      state.isInitialized = action.payload;
     },
     logout: (state) => {
       state.user = null;
-      state.token = null;
       state.isAuthenticated = false;
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("token");
-      }
+      state.isInitialized = true;
+      state.isLoading = false;
+      clearAccessToken();
     },
   },
 });
 
-export const { setUser, setToken, logout } = authSlice.actions;
+export const {
+  setUser,
+  setSession,
+  setToken,
+  setLoading,
+  setInitialized,
+  logout,
+} = authSlice.actions;
+
 export default authSlice.reducer;
