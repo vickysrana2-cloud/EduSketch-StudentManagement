@@ -226,6 +226,31 @@ export const teacherApi = baseApi.injectEndpoints({
     }),
 
     /**
+     * Atomic Teacher User & Profile Creation via POST /users/teachers.
+     */
+    createTeacherUser: builder.mutation<
+      any,
+      {
+        name: string;
+        email: string;
+        password?: string;
+        employeeId: string;
+        qualification: string[];
+        specialization: string[];
+        experienceYears: number;
+        joiningDate?: string;
+        institutionId?: string;
+      }
+    >({
+      query: (data) => ({
+        url: "/users/teachers",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["Teacher", "User"],
+    }),
+
+    /**
      * Creates new teacher profile via POST /teacher-profiles.
      */
     createTeacher: builder.mutation<
@@ -273,6 +298,7 @@ export const {
   useUpdateTeacherMutation,
   useAssignTeacherResourcesMutation,
   useAssignTeacherSubjectsMutation,
+  useCreateTeacherUserMutation,
   useCreateTeacherMutation,
   useCreateTeacherProfileMutation,
   useDeleteTeacherMutation,

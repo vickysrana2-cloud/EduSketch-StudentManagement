@@ -23,8 +23,7 @@ import {
 } from "lucide-react";
 
 import { useAppSelector } from "@/store/hooks";
-import { useCreateUserMutation, useUpdateUserStatusMutation } from "@/store/api/userApi";
-import { useCreateTeacherProfileMutation } from "@/store/api/teacherApi";
+import { useCreateTeacherUserMutation } from "@/store/api/teacherApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -83,10 +82,8 @@ export default function NewTeacherOnboardingPage() {
     employeeId: string;
   } | null>(null);
 
-  const [createUser, { isLoading: isCreatingUser }] = useCreateUserMutation();
-  const [createTeacherProfile, { isLoading: isCreatingProfile }] =
-    useCreateTeacherProfileMutation();
-  const [updateUserStatus] = useUpdateUserStatusMutation();
+  const [createTeacherUser, { isLoading: isSubmitting }] =
+    useCreateTeacherUserMutation();
 
   const {
     register,
@@ -138,28 +135,7 @@ export default function NewTeacherOnboardingPage() {
   };
 
   const onFinalSubmit = async (data: TeacherFullFormData) => {
-    let createdUserId: string | null = null;
-
     try {
-      // 1. Create Base User with role TEACHER
-      const userPayload = {
-        name: data.name.trim(),
-        email: data.email.trim().toLowerCase(),
-        password: data.password,
-        role: "TEACHER" as const,
-        institutionId:
-          currentUser?.institutionId || "67272714207198bb6c30f401",
-        status: "ACTIVE" as const,
-      };
-
-      const userRes = await createUser(userPayload).unwrap();
-      createdUserId = userRes?.id || userRes?._id || userRes?.user?.id;
-
-      if (!createdUserId) {
-        throw new Error("Teacher user account created, but no user ID was returned.");
-      }
-
-      // 2. Create Teacher Profile linked to userId
       const specializations = data.specialization
         .split(",")
         .map((s) => s.trim())
@@ -172,22 +148,27 @@ export default function NewTeacherOnboardingPage() {
 
       const joiningIso = new Date(data.joiningDate).toISOString();
 
-      const profilePayload = {
-        userId: createdUserId,
+      // Atomic Teacher Creation: User + Profile in a single transactional request
+      const payload = {
+        name: data.name.trim(),
+        email: data.email.trim().toLowerCase(),
+        password: data.password,
         employeeId: data.employeeId.trim().toUpperCase(),
         qualification: qualifications.length > 0 ? qualifications : [data.qualification.trim()],
         specialization: specializations.length > 0 ? specializations : ["General Faculty"],
         experienceYears: Number(data.experienceYears),
         joiningDate: joiningIso,
-        status: "ACTIVE",
+        institutionId: currentUser?.institutionId || undefined,
       };
 
-      const profileRes = await createTeacherProfile(profilePayload).unwrap();
-      const teacherId =
-        profileRes?.data?.id ||
-        profileRes?.teacher?.id ||
-        (profileRes as any)?._id ||
-        (profileRes as any)?.id ||
+      const result = await createTeacherUser(payload).unwrap();
+
+      const createdUserId =
+        result?.user?._id || result?.user?.id || result?.userId;
+      const createdTeacherId =
+        result?.teacherProfile?._id ||
+        result?.teacherProfile?.id ||
+        result?.id ||
         createdUserId;
 
       toast({
@@ -197,24 +178,12 @@ export default function NewTeacherOnboardingPage() {
       });
 
       setCreatedTeacherRecord({
-        userId: createdUserId,
-        teacherId: String(teacherId),
+        userId: String(createdUserId),
+        teacherId: String(createdTeacherId),
         name: data.name,
         employeeId: data.employeeId,
       });
     } catch (err: any) {
-      // 3. Best-effort rollback / cleanup if profile creation failed
-      if (createdUserId) {
-        try {
-          await updateUserStatus({
-            userId: createdUserId,
-            status: "INACTIVE",
-          }).unwrap();
-        } catch {
-          // Ignore secondary error
-        }
-      }
-
       const errorMessage =
         err?.data?.message ||
         err?.message ||
@@ -223,14 +192,10 @@ export default function NewTeacherOnboardingPage() {
       toast({
         type: "error",
         title: "Registration Error",
-        description: createdUserId
-          ? `${errorMessage} (The newly created user account was deactivated).`
-          : errorMessage,
+        description: errorMessage,
       });
     }
   };
-
-  const isSubmitting = isCreatingUser || isCreatingProfile;
 
   // Success Confirmation Screen
   if (createdTeacherRecord) {

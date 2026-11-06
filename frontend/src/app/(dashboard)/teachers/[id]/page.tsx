@@ -23,6 +23,8 @@ import {
   Users,
   Plus,
   ShieldCheck,
+  X,
+  Check,
 } from "lucide-react";
 
 import {
@@ -31,6 +33,7 @@ import {
   useAssignTeacherResourcesMutation,
   useDeleteTeacherMutation,
 } from "@/store/api/teacherApi";
+import { useGetClassesQuery, useGetSubjectsQuery } from "@/store/api/academicApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +50,22 @@ const teacherUpdateSchema = z.object({
 
 type TeacherUpdateFormData = z.infer<typeof teacherUpdateSchema>;
 
+const DEFAULT_AVAILABLE_CLASSES = [
+  { id: "67272714207198bb6c30f410", name: "Grade 9 - Section A" },
+  { id: "67272714207198bb6c30f411", name: "Grade 10 - Section A" },
+  { id: "67272714207198bb6c30f412", name: "Grade 10 - Section B" },
+  { id: "67272714207198bb6c30f413", name: "Grade 11 - Science" },
+  { id: "67272714207198bb6c30f414", name: "Grade 12 - Commerce" },
+];
+
+const DEFAULT_AVAILABLE_SUBJECTS = [
+  { id: "67272714207198bb6c30f420", name: "Mathematics" },
+  { id: "67272714207198bb6c30f421", name: "Physics" },
+  { id: "67272714207198bb6c30f422", name: "Chemistry" },
+  { id: "67272714207198bb6c30f423", name: "Computer Science" },
+  { id: "67272714207198bb6c30f424", name: "English Literature" },
+];
+
 export default function TeacherDetailsPage() {
   const params = useParams();
   const router = useRouter();
@@ -55,15 +74,29 @@ export default function TeacherDetailsPage() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [newSubjectInput, setNewSubjectInput] = useState("");
-  const [newClassInput, setNewClassInput] = useState("");
 
   const { data, isLoading, isError, refetch } = useGetTeacherByIdQuery(id);
   const teacher = data?.teacher || data?.data;
 
+  const { data: realClasses } = useGetClassesQuery();
+  const { data: realSubjects } = useGetSubjectsQuery({});
+
   const [updateProfile, { isLoading: isUpdating }] = useUpdateTeacherProfileMutation();
   const [assignResources, { isLoading: isAssigning }] = useAssignTeacherResourcesMutation();
   const [deleteTeacher, { isLoading: isDeletingTeacher }] = useDeleteTeacherMutation();
+
+  // State for Assignment Modal
+  const [selectedClassIds, setSelectedClassIds] = useState<string[]>([]);
+  const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
+
+  // Synchronize initial selections when modal opens
+  const openAssignModal = () => {
+    setSelectedClassIds(teacher?.assignedClassIds || []);
+    setSelectedSubjectIds(teacher?.assignedSubjectIds || []);
+    setIsAssignModalOpen(true);
+  };
 
   const {
     register,
@@ -150,6 +183,29 @@ export default function TeacherDetailsPage() {
     }
   };
 
+  const onSaveAssignments = async () => {
+    try {
+      await assignResources({
+        id,
+        assignedClassIds: selectedClassIds,
+        assignedSubjectIds: selectedSubjectIds,
+      }).unwrap();
+
+      toast({
+        type: "success",
+        title: "Assignments Updated",
+        description: "Classes and subjects allocated successfully to this faculty member.",
+      });
+      setIsAssignModalOpen(false);
+    } catch (err: any) {
+      toast({
+        type: "error",
+        title: "Assignment Failed",
+        description: err?.data?.message || "Failed to save assigned resources.",
+      });
+    }
+  };
+
   const onDeleteConfirm = async () => {
     try {
       await deleteTeacher(id).unwrap();
@@ -202,6 +258,16 @@ export default function TeacherDetailsPage() {
   const employeeId = teacher.employeeId || "EMP-" + String(teacher.id).slice(-4).toUpperCase();
   const isActive = (teacher.status || "active").toLowerCase() === "active";
 
+  const availableClasses =
+    realClasses?.data && realClasses.data.length > 0
+      ? realClasses.data.map((c) => ({ id: String(c.id), name: c.name }))
+      : DEFAULT_AVAILABLE_CLASSES;
+
+  const availableSubjects =
+    realSubjects?.data && realSubjects.data.length > 0
+      ? realSubjects.data.map((s) => ({ id: String(s.id), name: s.name }))
+      : DEFAULT_AVAILABLE_SUBJECTS;
+
   return (
     <div className="space-y-6 pb-12 max-w-6xl mx-auto">
       {/* Top Breadcrumb & Actions */}
@@ -211,6 +277,16 @@ export default function TeacherDetailsPage() {
         </Link>
 
         <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="default"
+            onClick={openAssignModal}
+            className="h-9 px-3 gap-1.5 text-xs font-semibold rounded-xl bg-purple-600 hover:bg-purple-700 text-white shadow-md shadow-purple-500/20"
+          >
+            <Users className="h-3.5 w-3.5" />
+            <span>Assign Classes & Subjects</span>
+          </Button>
+
           <Button
             size="sm"
             variant="outline"
@@ -279,7 +355,7 @@ export default function TeacherDetailsPage() {
               </div>
               <div className="flex items-center gap-2.5">
                 <Award className="h-4 w-4 text-blue-500 shrink-0" />
-                <span className="truncate">Highest Qualification: {teacher.qualification || "M.Ed, B.Sc"}</span>
+                <span className="truncate">Qualification: {teacher.qualification || "M.Ed, B.Sc"}</span>
               </div>
             </div>
           </div>
@@ -349,7 +425,14 @@ export default function TeacherDetailsPage() {
                   Assigned Classes & Sections
                 </h3>
               </div>
-              <Badge variant="purple">Academic Year 2026-2027</Badge>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={openAssignModal}
+                className="h-8 px-2.5 text-xs text-purple-600 rounded-lg"
+              >
+                + Assign Class
+              </Button>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
@@ -403,6 +486,14 @@ export default function TeacherDetailsPage() {
                   Taught Subjects & Curriculums
                 </h3>
               </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={openAssignModal}
+                className="h-8 px-2.5 text-xs text-indigo-600 rounded-lg"
+              >
+                Manage Subjects
+              </Button>
             </div>
 
             <div className="flex flex-wrap gap-2 pt-1">
@@ -456,6 +547,122 @@ export default function TeacherDetailsPage() {
         </div>
       </div>
 
+      {/* ASSIGN CLASSES & SUBJECTS MODAL */}
+      {isAssignModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-xl rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 sm:p-8 space-y-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  Assign Classes & Subjects
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Select classes and subjects to allocate to {teacher.name}.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsAssignModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Classes Section */}
+            <div className="space-y-3">
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
+                Assign Classes
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {availableClasses.map((cls) => {
+                  const isChecked = selectedClassIds.includes(cls.id);
+                  return (
+                    <label
+                      key={cls.id}
+                      className={`flex items-center gap-2.5 p-3 rounded-xl border text-xs cursor-pointer transition select-none ${
+                        isChecked
+                          ? "bg-purple-50 dark:bg-purple-950/40 border-purple-300 dark:border-purple-800 text-purple-900 dark:text-purple-200"
+                          : "border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => {
+                          if (isChecked) {
+                            setSelectedClassIds(selectedClassIds.filter((cid) => cid !== cls.id));
+                          } else {
+                            setSelectedClassIds([...selectedClassIds, cls.id]);
+                          }
+                        }}
+                        className="rounded text-purple-600 focus:ring-purple-500/20"
+                      />
+                      <span className="font-semibold">{cls.name}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Subjects Section */}
+            <div className="space-y-3">
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
+                Assign Subjects
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {availableSubjects.map((sub) => {
+                  const isChecked = selectedSubjectIds.includes(sub.id);
+                  return (
+                    <label
+                      key={sub.id}
+                      className={`flex items-center gap-2.5 p-3 rounded-xl border text-xs cursor-pointer transition select-none ${
+                        isChecked
+                          ? "bg-indigo-50 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-800 text-indigo-900 dark:text-indigo-200"
+                          : "border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => {
+                          if (isChecked) {
+                            setSelectedSubjectIds(selectedSubjectIds.filter((sid) => sid !== sub.id));
+                          } else {
+                            setSelectedSubjectIds([...selectedSubjectIds, sub.id]);
+                          }
+                        }}
+                        className="rounded text-indigo-600 focus:ring-indigo-500/20"
+                      />
+                      <span className="font-semibold">{sub.name}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsAssignModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="default"
+                onClick={onSaveAssignments}
+                disabled={isAssigning}
+                className="bg-purple-600 hover:bg-purple-700 text-white"
+              >
+                {isAssigning ? "Saving..." : "Save Assignments"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Delete Confirmation Dialog */}
       <ConfirmationDialog
         isOpen={isDeleting}
@@ -469,4 +676,3 @@ export default function TeacherDetailsPage() {
     </div>
   );
 }
-

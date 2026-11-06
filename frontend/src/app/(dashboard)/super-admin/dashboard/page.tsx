@@ -46,7 +46,7 @@ export default function SuperAdminDashboardPage() {
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <Link href="/institutions">
+              <Link href="/super-admin/institutions">
                 <Button variant="coral" size="lg" className="font-handwriting text-lg gap-2">
                   <Plus className="h-5 w-5" />
                   New Institution

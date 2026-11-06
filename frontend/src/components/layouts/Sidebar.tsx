@@ -13,6 +13,7 @@ import {
   Award,
   FileSpreadsheet,
   Settings,
+  Building2,
   ChevronLeft,
   ChevronRight,
   LogOut,
@@ -46,6 +47,15 @@ const navItems: NavItem[] = [
     color: "#4D9FFF",
     bgColor: "#EAF6FF",
     borderColor: "#8DD8FF",
+  },
+  {
+    name: "Institutions",
+    href: "/super-admin/institutions",
+    icon: <Building2 className="h-5 w-5" />,
+    roles: ["SUPER_ADMIN"],
+    color: "#8B6DFF",
+    bgColor: "#F4EEFF",
+    borderColor: "#C5A7FF",
   },
   {
     name: "Students",
