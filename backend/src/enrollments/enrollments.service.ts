@@ -23,6 +23,7 @@ import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interfa
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { AuditAction } from '../audit-logs/enums/audit-action.enum';
 import { AuditModule } from '../audit-logs/enums/audit-module.enum';
+import { TenantContextService } from '../common/tenancy/tenant-context.service';
 
 @Injectable()
 export class EnrollmentsService {
@@ -35,6 +36,7 @@ export class EnrollmentsService {
     private readonly studentProfileModel: Model<StudentProfileDocument>,
     @InjectModel(Class.name)
     private readonly classModel: Model<ClassDocument>,
+    private readonly tenantContextService: TenantContextService,
     private readonly auditLogsService: AuditLogsService,
   ) {}
 
@@ -46,41 +48,37 @@ export class EnrollmentsService {
   }
 
   async create(dto: CreateEnrollmentDto, currentUser: AuthenticatedUser): Promise<EnrollmentDocument> {
-    let targetInstId: Types.ObjectId;
-
-    if (currentUser.role === UserRole.ADMIN) {
-      if (!currentUser.institutionId) {
-        throw new ForbiddenException('Admin is not assigned to an institution');
-      }
-      targetInstId = this.validateObjectId(currentUser.institutionId, 'institutionId');
-    } else if (currentUser.role === UserRole.SUPER_ADMIN) {
-      if (!dto.institutionId) {
-        throw new BadRequestException('institutionId is required for Super Admin enrollment creation');
-      }
-      targetInstId = this.validateObjectId(dto.institutionId, 'institutionId');
-    } else {
-      throw new ForbiddenException('Only administrators can enroll students');
+    // Institution resolution (TASK 28)
+    const targetInstId = this.tenantContextService.resolveTenantId(
+      currentUser,
+      dto.institutionId,
+    );
+    if (!targetInstId) {
+      throw new BadRequestException('institutionId is required for enrollment creation');
     }
 
-    // 1. Validate student profile (Requirement 4)
+    // 1. Validate student profile (Requirement 4 & 9)
     const studentObjectId = this.validateObjectId(dto.studentId, 'studentId');
     const student = await this.studentProfileModel.findById(studentObjectId).exec();
     if (!student) {
       throw new NotFoundException(`Student profile with ID '${dto.studentId}' not found`);
     }
-    if (student.institutionId.toString() !== targetInstId.toString()) {
-      throw new BadRequestException('Student belongs to a different institution');
-    }
 
-    // 2. Validate class (Requirement 4 & 5)
+    // 2. Validate class (Requirement 4 & 9)
     const classObjectId = this.validateObjectId(dto.classId, 'classId');
     const classDoc = await this.classModel.findById(classObjectId).exec();
     if (!classDoc) {
       throw new NotFoundException(`Class with ID '${dto.classId}' not found`);
     }
-    if (classDoc.institutionId.toString() !== targetInstId.toString()) {
-      throw new BadRequestException('Class belongs to a different institution');
-    }
+
+    // Verify both student and class belong to the target institution (Requirement 9)
+    this.tenantContextService.validateSameInstitution(
+      [
+        { name: 'Student profile', institutionId: student.institutionId },
+        { name: 'Class', institutionId: classDoc.institutionId },
+      ],
+      targetInstId,
+    );
     if (classDoc.status !== ClassStatus.ACTIVE) {
       throw new BadRequestException(`Cannot enroll into an inactive class (Status: ${classDoc.status})`);
     }
@@ -190,9 +188,11 @@ export class EnrollmentsService {
     if (!targetClass) {
       throw new NotFoundException(`Target class with ID '${dto.targetClassId}' not found`);
     }
-    if (targetClass.institutionId.toString() !== currentEnrollment.institutionId.toString()) {
-      throw new BadRequestException('Target class belongs to a different institution');
-    }
+    this.tenantContextService.validateSameInstitution(
+      currentEnrollment,
+      targetClass,
+      'Target class',
+    );
     if (targetClass.status !== ClassStatus.ACTIVE) {
       throw new BadRequestException(`Target class is inactive (Status: ${targetClass.status})`);
     }
@@ -284,21 +284,12 @@ export class EnrollmentsService {
   ): Promise<{ items: EnrollmentDocument[]; total: number; page: number; limit: number; totalPages: number }> {
     const filterQuery: Record<string, any> = {};
 
-    // Multi-tenant isolation (Requirement 9)
-    if (
-      currentUser.role === UserRole.ADMIN ||
-      currentUser.role === UserRole.TEACHER ||
-      currentUser.role === UserRole.STUDENT
-    ) {
-      if (!currentUser.institutionId) {
-        throw new ForbiddenException('User is not assigned to an institution');
-      }
-      filterQuery.institutionId = this.validateObjectId(currentUser.institutionId, 'institutionId');
-    } else if (currentUser.role === UserRole.SUPER_ADMIN) {
-      if (query.institutionId) {
-        filterQuery.institutionId = this.validateObjectId(query.institutionId, 'institutionId');
-      }
-    }
+    // Multi-tenant isolation (Requirement 9 & Task 28)
+    const tenantFilter = this.tenantContextService.buildTenantFilter(
+      currentUser,
+      query.institutionId,
+    );
+    Object.assign(filterQuery, tenantFilter);
 
     if (query.studentId) {
       filterQuery.studentId = this.validateObjectId(query.studentId, 'studentId');
@@ -374,9 +365,11 @@ export class EnrollmentsService {
       if (!targetClass) {
         throw new NotFoundException(`Class with ID '${dto.classId}' not found`);
       }
-      if (targetClass.institutionId.toString() !== enrollment.institutionId.toString()) {
-        throw new BadRequestException('Class belongs to another institution');
-      }
+      this.tenantContextService.validateSameInstitution(
+        enrollment,
+        targetClass,
+        'Class',
+      );
       enrollment.classId = targetClassObjectId;
     }
 
@@ -454,11 +447,7 @@ export class EnrollmentsService {
   }
 
   private checkTenantAccess(enrollment: EnrollmentDocument, currentUser: AuthenticatedUser): void {
-    if (currentUser.role === UserRole.SUPER_ADMIN) return;
-
-    if (enrollment.institutionId.toString() !== currentUser.institutionId) {
-      throw new ForbiddenException('Access denied: Enrollment belongs to another institution');
-    }
+    this.tenantContextService.enforceTenantAccess(enrollment, currentUser, 'Enrollment');
   }
 }
 

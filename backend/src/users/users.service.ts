@@ -38,6 +38,7 @@ import { CreateTeacherUserDto } from './dto/create-teacher-user.dto';
 import { CreateStudentUserDto } from './dto/create-student-user.dto';
 import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
 import { UserRole, UserStatus } from './enums/user.enums';
+import { TenantContextService } from '../common/tenancy/tenant-context.service';
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 
 @Injectable()
@@ -59,6 +60,7 @@ export class UsersService {
     private readonly enrollmentModel: Model<EnrollmentDocument>,
     @InjectModel(Session.name)
     private readonly sessionModel: Model<SessionDocument>,
+    private readonly tenantContextService: TenantContextService,
     private readonly auditLogsService: AuditLogsService,
   ) {}
 
@@ -725,7 +727,7 @@ export class UsersService {
       .exec();
   }
 
-  async findUserById(id: string): Promise<UserDocument> {
+  async findUserById(id: string, currentUser?: AuthenticatedUser): Promise<UserDocument> {
     this.validateObjectId(id);
     const user = await this.userModel
       .findById(id)
@@ -735,6 +737,11 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException(`User with ID '${id}' not found`);
     }
+
+    if (currentUser) {
+      this.tenantContextService.enforceTenantAccess(user, currentUser, 'User');
+    }
+
     return user;
   }
 
@@ -759,7 +766,11 @@ export class UsersService {
       status?: UserStatus;
       search?: string;
     },
+    currentUser?: AuthenticatedUser,
   ): Promise<UserDocument[]> {
+    if (currentUser) {
+      this.tenantContextService.resolveTenantId(currentUser, institutionId);
+    }
     const objId = this.validateObjectId(institutionId, 'institutionId');
 
     const institutionExists = await this.institutionModel
@@ -876,19 +887,29 @@ export class UsersService {
     return updatedUser;
   }
 
-  async findAllUsers(filter?: {
-    role?: UserRole;
-    status?: UserStatus;
-    institutionId?: string;
-    search?: string;
-  }): Promise<UserDocument[]> {
+  async findAllUsers(
+    filter?: {
+      role?: UserRole;
+      status?: UserStatus;
+      institutionId?: string;
+      search?: string;
+    },
+    currentUser?: AuthenticatedUser,
+  ): Promise<UserDocument[]> {
     const query: Record<string, any> = {};
+
+    if (currentUser) {
+      const tenantFilter = this.tenantContextService.buildTenantFilter(
+        currentUser,
+        filter?.institutionId,
+      );
+      Object.assign(query, tenantFilter);
+    } else if (filter?.institutionId) {
+      query.institutionId = this.validateObjectId(filter.institutionId, 'institutionId');
+    }
 
     if (filter?.role) query.role = filter.role;
     if (filter?.status) query.status = filter.status;
-    if (filter?.institutionId) {
-      query.institutionId = this.validateObjectId(filter.institutionId, 'institutionId');
-    }
     if (filter?.search) {
       const searchRegex = new RegExp(filter.search.trim(), 'i');
       query.$or = [{ name: searchRegex }, { email: searchRegex }];

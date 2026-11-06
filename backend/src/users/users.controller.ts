@@ -150,20 +150,24 @@ export class UsersController {
     @Query('status') status?: UserStatus,
     @Query('institutionId') institutionId?: string,
     @Query('search') search?: string,
+    @CurrentUser() currentUser?: AuthenticatedUser,
   ) {
-    return await this.usersService.findAllUsers({
-      role,
-      status,
-      institutionId,
-      search,
-    });
+    return await this.usersService.findAllUsers(
+      {
+        role,
+        status,
+        institutionId,
+        search,
+      },
+      currentUser,
+    );
   }
 
   @Get(':id')
   @ApiOperation({
     summary: 'Get user by ID',
     description:
-      'Retrieves a single user by MongoDB ObjectId. Password hash is never included.',
+      'Retrieves a single user by MongoDB ObjectId. Password hash is never included. Tenant isolation enforced.',
   })
   @ApiParam({
     name: 'id',
@@ -176,15 +180,18 @@ export class UsersController {
   @ApiNotFoundResponse({
     description: 'User with the specified ID was not found.',
   })
-  async findUserById(@Param('id', ParseObjectIdPipe) id: string) {
-    return await this.usersService.findUserById(id);
+  async findUserById(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @CurrentUser() currentUser?: AuthenticatedUser,
+  ) {
+    return await this.usersService.findUserById(id, currentUser);
   }
 
   @Get('institution/:institutionId')
   @ApiOperation({
     summary: 'Get all users belonging to an institution',
     description:
-      'Retrieves all users (Admins, Teachers, Students) for a given institution ID.',
+      'Retrieves all users (Admins, Teachers, Students) for a given institution ID. Tenant isolation enforced.',
   })
   @ApiParam({
     name: 'institutionId',
@@ -216,12 +223,17 @@ export class UsersController {
     @Query('role') role?: UserRole,
     @Query('status') status?: UserStatus,
     @Query('search') search?: string,
+    @CurrentUser() currentUser?: AuthenticatedUser,
   ) {
-    return await this.usersService.findUsersByInstitution(institutionId, {
-      role,
-      status,
-      search,
-    });
+    return await this.usersService.findUsersByInstitution(
+      institutionId,
+      {
+        role,
+        status,
+        search,
+      },
+      currentUser,
+    );
   }
 
   @Patch(':id')

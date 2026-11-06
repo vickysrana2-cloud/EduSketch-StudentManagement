@@ -21,6 +21,7 @@ import { SubjectStatus } from '../src/subjects/schemas/subject.schema';
 import { EnrollmentStatus } from '../src/enrollments/schemas/enrollment.schema';
 import { UserRole, UserStatus } from '../src/users/enums/user.enums';
 import { AuthenticatedUser } from '../src/auth/interfaces/authenticated-user.interface';
+import { TenantContextService } from '../src/common/tenancy/tenant-context.service';
 
 async function runAcademicModulesTests() {
   console.log('================================================================');
@@ -157,9 +158,12 @@ async function runAcademicModulesTests() {
     exec: async () => studentProfilesDb.length,
   });
 
+  const tenantContextService = new TenantContextService();
+
   const studentProfilesService = new StudentProfilesService(
     mockStudentProfileModel,
     mockUserModel,
+    tenantContextService,
     mockAuditLogsService,
   );
 
@@ -211,6 +215,7 @@ async function runAcademicModulesTests() {
   const teacherProfilesService = new TeacherProfilesService(
     mockTeacherProfileModel,
     mockUserModel,
+    tenantContextService,
     mockAuditLogsService,
   );
 
@@ -283,6 +288,7 @@ async function runAcademicModulesTests() {
     mockClassModel,
     mockTeacherProfileModel,
     mockConnection,
+    tenantContextService,
     mockAuditLogsService,
   );
 
@@ -341,6 +347,7 @@ async function runAcademicModulesTests() {
     mockSubjectModel,
     mockClassModel,
     mockTeacherProfileModel,
+    tenantContextService,
     mockAuditLogsService,
   );
 
@@ -397,6 +404,7 @@ async function runAcademicModulesTests() {
     mockEnrollmentModel,
     mockStudentProfileModel,
     mockClassModel,
+    tenantContextService,
     mockAuditLogsService,
   );
 

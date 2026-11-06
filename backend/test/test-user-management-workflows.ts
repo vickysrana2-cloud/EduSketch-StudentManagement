@@ -14,6 +14,7 @@ import { Gender, ParentRelationship } from '../src/student-profiles/schemas/stud
 import { ClassStatus } from '../src/classes/schemas/class.schema';
 import { EnrollmentStatus } from '../src/enrollments/schemas/enrollment.schema';
 import { AuthenticatedUser } from '../src/auth/interfaces/authenticated-user.interface';
+import { TenantContextService } from '../src/common/tenancy/tenant-context.service';
 
 async function runUserManagementTests() {
   console.log('================================================================');
@@ -329,6 +330,8 @@ async function runUserManagementTests() {
     mockAuditLogsService,
   );
 
+  const tenantContextService = new TenantContextService();
+
   const usersService = new UsersService(
     mockUserModel,
     mockInstitutionModel,
@@ -337,6 +340,7 @@ async function runUserManagementTests() {
     mockClassModel,
     mockEnrollmentModel,
     mockSessionModel,
+    tenantContextService,
     mockAuditLogsService,
   );
 

@@ -16,6 +16,7 @@ import {
 } from './dto/audit-log-response.dto';
 import { UserRole } from '../users/enums/user.enums';
 import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
+import { TenantContextService } from '../common/tenancy/tenant-context.service';
 
 @Injectable()
 export class AuditLogsService {
@@ -28,6 +29,7 @@ export class AuditLogsService {
   constructor(
     @InjectModel(AuditLog.name)
     private readonly auditLogModel: Model<AuditLogDocument>,
+    private readonly tenantContextService: TenantContextService,
   ) {}
 
   /**
@@ -107,36 +109,17 @@ export class AuditLogsService {
   ): Promise<PaginatedAuditLogsResponseDto> {
     const filterQuery: Record<string, any> = {};
 
-    // 1. Multi-tenant access control (Requirement 8)
-    if (currentUser.role === UserRole.ADMIN) {
-      if (!currentUser.institutionId) {
-        throw new ForbiddenException(
-          'Institution Administrator account is not associated with an institution.',
-        );
-      }
-      if (query.institutionId && query.institutionId !== currentUser.institutionId) {
-        throw new ForbiddenException(
-          'Tenant violation: You can only view audit logs for your own institution.',
-        );
-      }
-      // Strictly enforce Admin's own institution
-      filterQuery.institutionId = this.validateObjectId(
-        currentUser.institutionId,
-        'currentUser.institutionId',
-      );
-    } else if (currentUser.role === UserRole.SUPER_ADMIN) {
-      if (query.institutionId) {
-        filterQuery.institutionId = this.validateObjectId(
-          query.institutionId,
-          'institutionId',
-        );
-      }
-    } else {
-      // Teachers and Students are forbidden from viewing audit logs
+    // 1. Multi-tenant access control (TASK 28)
+    if (currentUser.role !== UserRole.SUPER_ADMIN && currentUser.role !== UserRole.ADMIN) {
       throw new ForbiddenException(
         'Access denied: You do not have permission to view audit logs.',
       );
     }
+    const tenantFilter = this.tenantContextService.buildTenantFilter(
+      currentUser,
+      query.institutionId,
+    );
+    Object.assign(filterQuery, tenantFilter);
 
     // 2. Functional Module Filter
     if (query.module) {
@@ -265,6 +248,13 @@ export class AuditLogsService {
               email: user.email,
               role: user.role,
             }
+          : user
+          ? {
+              id: user.toString(),
+              name: '',
+              email: '',
+              role: '',
+            }
           : null,
       institution:
         institution && typeof institution === 'object' && institution._id
@@ -272,6 +262,12 @@ export class AuditLogsService {
               id: institution._id.toString(),
               name: institution.name,
               code: institution.code,
+            }
+          : institution
+          ? {
+              id: institution.toString(),
+              name: '',
+              code: '',
             }
           : null,
       action: doc.action,

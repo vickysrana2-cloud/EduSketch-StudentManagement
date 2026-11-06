@@ -23,6 +23,7 @@ import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interfa
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { AuditAction } from '../audit-logs/enums/audit-action.enum';
 import { AuditModule } from '../audit-logs/enums/audit-module.enum';
+import { TenantContextService } from '../common/tenancy/tenant-context.service';
 
 @Injectable()
 export class SubjectsService {
@@ -35,6 +36,7 @@ export class SubjectsService {
     private readonly classModel: Model<ClassDocument>,
     @InjectModel(TeacherProfile.name)
     private readonly teacherProfileModel: Model<TeacherProfileDocument>,
+    private readonly tenantContextService: TenantContextService,
     private readonly auditLogsService: AuditLogsService,
   ) {}
 
@@ -46,20 +48,13 @@ export class SubjectsService {
   }
 
   async create(dto: CreateSubjectDto, currentUser: AuthenticatedUser): Promise<SubjectDocument> {
-    let targetInstId: Types.ObjectId;
-
-    if (currentUser.role === UserRole.ADMIN) {
-      if (!currentUser.institutionId) {
-        throw new ForbiddenException('Admin is not assigned to an institution');
-      }
-      targetInstId = this.validateObjectId(currentUser.institutionId, 'institutionId');
-    } else if (currentUser.role === UserRole.SUPER_ADMIN) {
-      if (!dto.institutionId) {
-        throw new BadRequestException('institutionId is required for Super Admin subject creation');
-      }
-      targetInstId = this.validateObjectId(dto.institutionId, 'institutionId');
-    } else {
-      throw new ForbiddenException('Only administrators can create subjects');
+    // Institution resolution (TASK 28)
+    const targetInstId = this.tenantContextService.resolveTenantId(
+      currentUser,
+      dto.institutionId,
+    );
+    if (!targetInstId) {
+      throw new BadRequestException('institutionId is required for subject creation');
     }
 
     // 1. Validate that the class exists and belongs to the same institution (Requirement 4 & 5)
@@ -68,9 +63,10 @@ export class SubjectsService {
     if (!classDoc) {
       throw new NotFoundException(`Class with ID '${dto.classId}' not found`);
     }
-    if (classDoc.institutionId.toString() !== targetInstId.toString()) {
-      throw new BadRequestException('The referenced class belongs to a different institution');
-    }
+    this.tenantContextService.validateSameInstitution(
+      [{ name: 'Class', institutionId: classDoc.institutionId }],
+      targetInstId,
+    );
 
     // 2. Validate assigned teachers if provided (Requirement 4 & 5)
     const teacherObjectIds: Types.ObjectId[] = [];
@@ -81,11 +77,10 @@ export class SubjectsService {
         if (!teacher) {
           throw new NotFoundException(`Teacher profile with ID '${tId}' not found`);
         }
-        if (teacher.institutionId.toString() !== targetInstId.toString()) {
-          throw new BadRequestException(
-            `Teacher with ID '${tId}' belongs to a different institution`,
-          );
-        }
+        this.tenantContextService.validateSameInstitution(
+          [{ name: `Teacher (${tId})`, institutionId: teacher.institutionId }],
+          targetInstId,
+        );
         teacherObjectIds.push(tObjectId);
       }
     }
@@ -140,21 +135,12 @@ export class SubjectsService {
   ): Promise<{ items: SubjectDocument[]; total: number; page: number; limit: number; totalPages: number }> {
     const filterQuery: Record<string, any> = {};
 
-    // Multi-tenant isolation (Requirement 7)
-    if (
-      currentUser.role === UserRole.ADMIN ||
-      currentUser.role === UserRole.TEACHER ||
-      currentUser.role === UserRole.STUDENT
-    ) {
-      if (!currentUser.institutionId) {
-        throw new ForbiddenException('User is not assigned to an institution');
-      }
-      filterQuery.institutionId = this.validateObjectId(currentUser.institutionId, 'institutionId');
-    } else if (currentUser.role === UserRole.SUPER_ADMIN) {
-      if (query.institutionId) {
-        filterQuery.institutionId = this.validateObjectId(query.institutionId, 'institutionId');
-      }
-    }
+    // Multi-tenant isolation (TASK 28)
+    const tenantFilter = this.tenantContextService.buildTenantFilter(
+      currentUser,
+      query.institutionId,
+    );
+    Object.assign(filterQuery, tenantFilter);
 
     if (query.classId) {
       filterQuery.classId = this.validateObjectId(query.classId, 'classId');
@@ -236,9 +222,11 @@ export class SubjectsService {
       if (!classDoc) {
         throw new NotFoundException(`Class with ID '${dto.classId}' not found`);
       }
-      if (classDoc.institutionId.toString() !== subject.institutionId.toString()) {
-        throw new BadRequestException('Class belongs to another institution');
-      }
+      this.tenantContextService.validateSameInstitution(
+        subject,
+        classDoc,
+        'Class',
+      );
       subject.classId = classObjectId;
     }
 
@@ -251,9 +239,11 @@ export class SubjectsService {
         if (!teacher) {
           throw new NotFoundException(`Teacher profile with ID '${tId}' not found`);
         }
-        if (teacher.institutionId.toString() !== subject.institutionId.toString()) {
-          throw new BadRequestException(`Teacher with ID '${tId}' belongs to another institution`);
-        }
+        this.tenantContextService.validateSameInstitution(
+          subject,
+          teacher,
+          `Teacher '${tId}'`,
+        );
         teacherObjectIds.push(tObjectId);
       }
       subject.teacherIds = teacherObjectIds;
@@ -364,11 +354,7 @@ export class SubjectsService {
   }
 
   private checkTenantAccess(subject: SubjectDocument, currentUser: AuthenticatedUser): void {
-    if (currentUser.role === UserRole.SUPER_ADMIN) return;
-
-    if (subject.institutionId.toString() !== currentUser.institutionId) {
-      throw new ForbiddenException('Access denied: Subject belongs to another institution');
-    }
+    this.tenantContextService.enforceTenantAccess(subject, currentUser, 'Subject');
   }
 }
 

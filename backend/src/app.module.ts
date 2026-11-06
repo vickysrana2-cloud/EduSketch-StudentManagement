@@ -16,6 +16,7 @@ import { TeacherProfilesModule } from './teacher-profiles/teacher-profiles.modul
 import { ClassesModule } from './classes/classes.module';
 import { SubjectsModule } from './subjects/subjects.module';
 import { EnrollmentsModule } from './enrollments/enrollments.module';
+import { TenancyModule } from './common/tenancy/tenancy.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { EnrollmentsModule } from './enrollments/enrollments.module';
     ClassesModule,
     SubjectsModule,
     EnrollmentsModule,
+    TenancyModule,
   ],
   controllers: [AppController],
   providers: [AppService],

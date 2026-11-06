@@ -21,6 +21,7 @@ import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interfa
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { AuditAction } from '../audit-logs/enums/audit-action.enum';
 import { AuditModule } from '../audit-logs/enums/audit-module.enum';
+import { TenantContextService } from '../common/tenancy/tenant-context.service';
 
 @Injectable()
 export class StudentProfilesService {
@@ -31,6 +32,7 @@ export class StudentProfilesService {
     private readonly studentProfileModel: Model<StudentProfileDocument>,
     @InjectModel(User.name)
     private readonly userModel: Model<UserDocument>,
+    private readonly tenantContextService: TenantContextService,
     private readonly auditLogsService: AuditLogsService,
   ) {}
 
@@ -69,28 +71,20 @@ export class StudentProfilesService {
       );
     }
 
-    // 3. Institution resolution & authorization
-    let targetInstId: Types.ObjectId;
-    if (currentUser.role === UserRole.ADMIN) {
-      if (!currentUser.institutionId) {
-        throw new ForbiddenException('Admin is not assigned to an institution');
-      }
-      targetInstId = this.validateObjectId(currentUser.institutionId, 'institutionId');
-    } else if (currentUser.role === UserRole.SUPER_ADMIN) {
-      if (!dto.institutionId) {
-        throw new BadRequestException('institutionId is required for Super Admin profile creation');
-      }
-      targetInstId = this.validateObjectId(dto.institutionId, 'institutionId');
-    } else {
-      throw new ForbiddenException('Only administrators can create student profiles');
+    // 3. Institution resolution & authorization (TASK 28)
+    const targetInstId = this.tenantContextService.resolveTenantId(
+      currentUser,
+      dto.institutionId,
+    );
+    if (!targetInstId) {
+      throw new BadRequestException('institutionId is required for profile creation');
     }
 
-    // Verify user account belongs to the same institution
-    if (!user.institutionId || user.institutionId.toString() !== targetInstId.toString()) {
-      throw new BadRequestException(
-        'User account belongs to a different institution than the specified profile target',
-      );
-    }
+    // Verify referenced user account belongs to the same institution (Requirement 9)
+    this.tenantContextService.validateSameInstitution(
+      [{ name: 'User account', institutionId: user.institutionId }],
+      targetInstId,
+    );
 
     // 4. Check admissionNumber uniqueness within institution (Requirement 4)
     const normalizedAdmission = dto.admissionNumber.trim().toUpperCase();
@@ -142,18 +136,15 @@ export class StudentProfilesService {
   ): Promise<{ items: StudentProfileDocument[]; total: number; page: number; limit: number; totalPages: number }> {
     const filterQuery: Record<string, any> = {};
 
-    // Multi-tenant isolation (Requirement 9)
+    // Multi-tenant isolation (TASK 28)
     if (currentUser.role === UserRole.STUDENT) {
       filterQuery.userId = this.validateObjectId(currentUser.userId, 'userId');
-    } else if (currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.TEACHER) {
-      if (!currentUser.institutionId) {
-        throw new ForbiddenException('User is not associated with an institution');
-      }
-      filterQuery.institutionId = this.validateObjectId(currentUser.institutionId, 'institutionId');
-    } else if (currentUser.role === UserRole.SUPER_ADMIN) {
-      if (query.institutionId) {
-        filterQuery.institutionId = this.validateObjectId(query.institutionId, 'institutionId');
-      }
+    } else {
+      const tenantFilter = this.tenantContextService.buildTenantFilter(
+        currentUser,
+        query.institutionId,
+      );
+      Object.assign(filterQuery, tenantFilter);
     }
 
     if (query.status) filterQuery.status = query.status;
@@ -274,15 +265,11 @@ export class StudentProfilesService {
     if (currentUser.role === UserRole.SUPER_ADMIN) return;
 
     if (currentUser.role === UserRole.STUDENT) {
-      if (profile.userId.toString() !== currentUser.userId) {
-        throw new ForbiddenException('Access denied: You can only view your own student profile');
-      }
+      this.tenantContextService.enforceStudentSelfAccess(currentUser, profile.userId);
       return;
     }
 
-    if (profile.institutionId.toString() !== currentUser.institutionId) {
-      throw new ForbiddenException('Access denied: Student profile belongs to another institution');
-    }
+    this.tenantContextService.enforceTenantAccess(profile, currentUser, 'Student profile');
   }
 }
 
