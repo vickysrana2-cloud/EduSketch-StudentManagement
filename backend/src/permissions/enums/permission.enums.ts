@@ -1,0 +1,21 @@
+export enum PermissionModule {
+  INSTITUTIONS = 'INSTITUTIONS',
+  USERS = 'USERS',
+  STUDENTS = 'STUDENTS',
+  TEACHERS = 'TEACHERS',
+  CLASSES = 'CLASSES',
+  SUBJECTS = 'SUBJECTS',
+  ATTENDANCE = 'ATTENDANCE',
+  EXAMINATIONS = 'EXAMINATIONS',
+  RESULTS = 'RESULTS',
+  FEES = 'FEES',
+}
+
+export enum PermissionAction {
+  CREATE = 'CREATE',
+  READ = 'READ',
+  UPDATE = 'UPDATE',
+  DELETE = 'DELETE',
+  MANAGE = 'MANAGE',
+}
+

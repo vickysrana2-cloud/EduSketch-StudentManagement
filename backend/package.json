@@ -19,7 +19,9 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "seed:super-admin": "ts-node -r tsconfig-paths/register src/database/seeds/super-admin.seed.ts",
-    "seed:roles": "ts-node -r tsconfig-paths/register src/database/seeds/roles.seed.ts"
+    "seed:roles": "ts-node -r tsconfig-paths/register src/database/seeds/roles.seed.ts",
+    "seed:permissions": "ts-node -r tsconfig-paths/register src/database/seeds/permissions.seed.ts",
+    "seed:role-permissions": "ts-node -r tsconfig-paths/register src/database/seeds/role-permissions.seed.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

@@ -1,19 +1,21 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+import { AuthenticatedUser } from '../interfaces/authenticated-user.interface';
 
 /**
- * Custom parameter decorator to extract the authenticated user from the Request context.
+ * Custom parameter decorator to extract the verified AuthenticatedUser object
+ * (or a specific field) attached to Express Request context by JwtStrategy.
  *
  * Usage:
  *   @Get('profile')
- *   getProfile(@CurrentUser() user: any) { ... }
+ *   getProfile(@CurrentUser() user: AuthenticatedUser) { ... }
  *
  *   @Get('email')
  *   getEmail(@CurrentUser('email') email: string) { ... }
  */
 export const CurrentUser = createParamDecorator(
-  (data: string | undefined, ctx: ExecutionContext) => {
+  (data: keyof AuthenticatedUser | undefined, ctx: ExecutionContext) => {
     const request = ctx.switchToHttp().getRequest();
-    const user = request.user;
+    const user: AuthenticatedUser | undefined = request.user;
 
     if (!user) {
       return null;
@@ -22,4 +24,3 @@ export const CurrentUser = createParamDecorator(
     return data ? user[data] : user;
   },
 );
-
