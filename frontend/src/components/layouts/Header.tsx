@@ -5,6 +5,7 @@ import { Search, Bell, Sun, Moon, Menu, GraduationCap } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { toggleMobileSidebar, toggleTheme } from "@/store/slices/uiSlice";
 import { DoodleSpark } from "@/components/ui/doodles";
+import { UserProfileMenu } from "./UserProfileMenu";
 
 export function Header() {
   const dispatch = useAppDispatch();
@@ -74,20 +75,8 @@ export function Header() {
             </span>
           </button>
 
-          {/* Profile Badge */}
-          <div className="flex items-center gap-2.5 pl-3">
-            <div className="h-9 w-9 rounded-full bg-[#8B6DFF] text-white flex items-center justify-center font-bold text-sm shadow-[0_2px_8px_rgba(139,109,255,0.35)]">
-              {user?.name?.charAt(0) || "A"}
-            </div>
-            <div className="hidden sm:block text-left">
-              <p className="text-xs font-bold text-slate-900 dark:text-slate-100 leading-tight">
-                {user?.name || "Admin User"}
-              </p>
-              <p className="text-[10px] font-handwriting font-bold text-[#8B6DFF] dark:text-[#C5A7FF]">
-                {user?.role || "ADMIN"}
-              </p>
-            </div>
-          </div>
+          {/* Interactive User Profile Dropdown & Session Controls */}
+          <UserProfileMenu />
         </div>
       </div>
     </header>

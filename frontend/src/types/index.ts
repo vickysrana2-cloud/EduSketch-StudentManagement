@@ -33,6 +33,7 @@ export interface User {
   email: string;
   role: Role;
   avatar?: string | null;
+  institutionId?: string | null;
 }
 
 export interface Mark {
@@ -47,22 +48,52 @@ export interface Student {
   id: number | string;
   name: string;
   email: string;
-  age: number;
+  age?: number;
+  dateOfBirth?: string;
+  gender?: string;
+  bloodGroup?: string | null;
+  admissionNumber?: string;
+  admissionNo?: string;
   class?: string;
   section?: string;
-  status?: "active" | "inactive";
+  status?: "active" | "inactive" | string;
   marks?: Mark[];
   createdAt?: string;
+  address?: {
+    street?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
+    country?: string;
+  };
+  parentDetails?: Array<{
+    name: string;
+    relationship?: string;
+    phone: string;
+    email?: string | null;
+    occupation?: string | null;
+  }>;
+  userId?: any;
+  institutionId?: string;
 }
 
 export interface Teacher {
   id: number | string;
   name: string;
   email: string;
+  employeeId?: string;
   phone?: string;
-  subjects?: string[];
+  qualification?: string;
+  specialization?: string[];
+  experienceYears?: number;
+  joiningDate?: string;
   assignedClasses?: string[];
-  status?: "active" | "inactive";
+  assignedClassIds?: string[];
+  assignedSubjectIds?: string[];
+  subjects?: string[];
+  status?: "active" | "inactive" | string;
+  createdAt?: string;
+  userId?: any;
 }
 
 export interface AcademicSession {
@@ -96,6 +127,7 @@ export interface APIResponse<T = any> {
   message?: string;
   data?: T;
   student?: T;
+  teacher?: T;
   pagination?: Pagination;
 }
 

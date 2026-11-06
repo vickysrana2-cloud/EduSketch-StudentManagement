@@ -23,6 +23,9 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { toggleSidebar, setMobileSidebarOpen } from "@/store/slices/uiSlice";
 import { logout } from "@/store/slices/authSlice";
 import { useLogoutMutation } from "@/store/api/authApi";
+import { clearAccessToken } from "@/lib/auth-session";
+import { useToast } from "@/components/ui/toast";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 
 interface NavItem {
   name: string;
@@ -124,17 +127,27 @@ export function Sidebar() {
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
   const { isMobileSidebarOpen } = useAppSelector((state) => state.ui);
-  const [logoutMutation] = useLogoutMutation();
+  const [logoutMutation, { isLoading: isLoggingOut }] = useLogoutMutation();
+  const { toast } = useToast();
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
-  const handleLogout = async () => {
+  const handleConfirmLogout = async () => {
     try {
       await logoutMutation().unwrap();
     } catch {
       // Proceed with local logout regardless of network error
+    } finally {
+      clearAccessToken();
+      dispatch(logout());
+      dispatch(setMobileSidebarOpen(false));
+      setIsLogoutModalOpen(false);
+      toast({
+        type: "info",
+        title: "Signed Out",
+        description: "Your session has ended safely.",
+      });
+      router.push("/login");
     }
-    dispatch(logout());
-    dispatch(setMobileSidebarOpen(false));
-    router.push("/login");
   };
 
   const [isHovered, setIsHovered] = React.useState(false);
@@ -236,7 +249,7 @@ export function Sidebar() {
         {/* Footer Sign Out Button */}
         <div className="py-4 space-y-2">
           <button
-            onClick={handleLogout}
+            onClick={() => setIsLogoutModalOpen(true)}
             className={`w-full flex items-center ${
               isHovered ? "justify-start gap-3 px-4" : "justify-center px-0"
             } py-2.5 rounded-xl bg-[#FFF1E8] dark:bg-[#3A1F1B] text-[#FF8066] hover:bg-[#FF8066] hover:text-white transition-all duration-200 sketch-shadow-sm text-xs font-bold font-handwriting`}
@@ -280,7 +293,7 @@ export function Sidebar() {
 
         <div className="pt-4">
           <button
-            onClick={handleLogout}
+            onClick={() => setIsLogoutModalOpen(true)}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#FF8066] text-white font-bold text-sm sketch-shadow-sm hover:bg-[#E66B51] transition-all duration-200"
           >
             <LogOut className="h-4 w-4" />
@@ -288,6 +301,19 @@ export function Sidebar() {
           </button>
         </div>
       </aside>
+
+      {/* Logout Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+        onConfirm={handleConfirmLogout}
+        title="Sign Out"
+        description="Are you sure you want to end your active session on this device? Your refresh token will be revoked on the server."
+        confirmText="Yes, Sign Out"
+        cancelText="Cancel"
+        variant="destructive"
+        isLoading={isLoggingOut}
+      />
     </>
   );
 }

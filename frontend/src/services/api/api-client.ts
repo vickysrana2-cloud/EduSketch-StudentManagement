@@ -5,6 +5,12 @@ import axios, {
   InternalAxiosRequestConfig,
 } from "axios";
 import { handleApiError, ApiError } from "./api-error";
+import {
+  getAccessToken,
+  setAccessToken,
+  clearAccessToken,
+  executeRefreshToken,
+} from "@/lib/auth-session";
 
 /**
  * Sensitive field names that must never appear in frontend console logs or telemetry.
@@ -66,9 +72,15 @@ function createApiClient(): AxiosInstance {
     },
   });
 
-  // Request Interceptor: Logging and request preparation
+  // Request Interceptor: Logging, header injection, and request preparation
   instance.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
+      // Automatically attach in-memory access token if available
+      const token = getAccessToken();
+      if (token && !config.headers.Authorization) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+
       // In development, log outgoing requests without leaking sensitive payload data
       if (process.env.NODE_ENV === "development") {
         const sanitizedBody = config.data
@@ -87,12 +99,45 @@ function createApiClient(): AxiosInstance {
     }
   );
 
-  // Response Interceptor: Format errors into standardized ApiError objects
+  // Response Interceptor: Format errors into standardized ApiError objects & handle silent 401 reauth
   instance.interceptors.response.use(
     (response: AxiosResponse) => {
       return response;
     },
-    (error) => {
+    async (error) => {
+      const originalRequest = error.config;
+
+      // Handle 401 Unauthorized with token refresh mutex
+      if (
+        error.response?.status === 401 &&
+        originalRequest &&
+        !(originalRequest as any)._retry
+      ) {
+        const url = originalRequest.url || "";
+        const isAuthEndpoint =
+          url.includes("/auth/login") || url.includes("/auth/refresh");
+
+        if (!isAuthEndpoint) {
+          (originalRequest as any)._retry = true;
+
+          try {
+            const apiBaseUrl =
+              process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
+            const newAccessToken = await executeRefreshToken(apiBaseUrl);
+
+            if (newAccessToken) {
+              setAccessToken(newAccessToken);
+              originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+              return instance(originalRequest);
+            } else {
+              clearAccessToken();
+            }
+          } catch {
+            clearAccessToken();
+          }
+        }
+      }
+
       const apiError = handleApiError(error);
 
       if (process.env.NODE_ENV === "development") {

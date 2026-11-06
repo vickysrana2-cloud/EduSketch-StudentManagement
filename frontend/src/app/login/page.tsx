@@ -18,11 +18,12 @@ import {
 } from "lucide-react";
 
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { setUser, setToken, setSession } from "@/store/slices/authSlice";
-import { useLoginMutation } from "@/store/api/authApi";
+import { setSession } from "@/store/slices/authSlice";
+import { authService } from "@/services/auth.service";
+import { ApiError } from "@/services/api";
 import { toggleTheme } from "@/store/slices/uiSlice";
 import { useToast } from "@/components/ui/toast";
-import { Role } from "@/types";
+import { Role, UserRole } from "@/types";
 import { AuthInput } from "@/components/auth/AuthInput";
 import { RoleSelector, ROLE_OPTIONS } from "@/components/auth/RoleSelector";
 import { SocialLogin } from "@/components/auth/SocialLogin";
@@ -110,7 +111,6 @@ export default function LoginPage() {
   const dispatch = useAppDispatch();
   const { toast } = useToast();
   const { theme } = useAppSelector((state) => state.ui);
-  const [loginMutation] = useLoginMutation();
 
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
@@ -155,26 +155,35 @@ export default function LoginPage() {
   };
 
   const onSubmit = async (data: LoginFormData) => {
+    // Prevent repeated concurrent submissions
+    if (isSubmitting) return;
     setIsSubmitting(true);
 
     try {
-      const response = await loginMutation({
-        email: data.email,
+      // Connect using centralized Axios client
+      const response = await authService.login({
+        email: data.email.trim(),
         password: data.password,
-        role: data.role,
-      }).unwrap();
+        role: data.role as UserRole,
+      });
 
-      const authenticatedUser = {
+      // Clear password field immediately after submission
+      setValue("password", "");
+
+      // Read authoritative user response from backend
+      const verifiedUser = {
         id: response.user.id,
         name: response.user.name,
         email: response.user.email,
         role: response.user.role,
         avatar: response.user.avatar,
+        institutionId: response.user.institutionId,
       };
 
+      // Store access token in client memory and update auth state
       dispatch(
         setSession({
-          user: authenticatedUser,
+          user: verifiedUser,
           accessToken: response.accessToken,
         })
       );
@@ -187,30 +196,57 @@ export default function LoginPage() {
 
       // Redirect strictly according to verified role returned by backend
       switch (response.user.role) {
-        case "SUPER_ADMIN":
+        case UserRole.SUPER_ADMIN:
           router.push("/super-admin/dashboard");
           break;
-        case "ADMIN":
+        case UserRole.ADMIN:
           router.push("/admin/dashboard");
           break;
-        case "TEACHER":
+        case UserRole.TEACHER:
           router.push("/teacher/dashboard");
           break;
-        case "STUDENT":
+        case UserRole.STUDENT:
           router.push("/student/dashboard");
           break;
         default:
           router.push("/dashboard");
       }
-    } catch (err: any) {
-      const errorMsg =
-        err?.data?.message ||
-        err?.message ||
-        "Invalid credentials or connection error. Please verify.";
+    } catch (err: unknown) {
+      // Do not store passwords after failed submission
+      setValue("password", "");
+
+      let errorTitle = "Sign In Failed";
+      let errorDescription = "An unexpected error occurred. Please try again.";
+
+      if (err instanceof ApiError) {
+        if (err.isNetworkError) {
+          errorTitle = "Connection Error";
+          errorDescription =
+            "Unable to connect to the backend server. Please check your network connection.";
+        } else if (err.isUnauthorized) {
+          errorTitle = "Authentication Failed";
+          errorDescription = err.message || "Invalid email or password.";
+        } else if (err.isBadRequest || err.isUnprocessableEntity) {
+          errorTitle = "Validation Error";
+          errorDescription =
+            err.formattedValidationErrors ||
+            err.message ||
+            "Please check your input details.";
+        } else if (err.statusCode === 429) {
+          errorTitle = "Rate Limit Exceeded";
+          errorDescription =
+            "Too many login attempts. Please wait a minute and try again.";
+        } else {
+          errorDescription = err.message;
+        }
+      } else if (err instanceof Error) {
+        errorDescription = err.message;
+      }
+
       toast({
         type: "error",
-        title: "Sign In Failed",
-        description: Array.isArray(errorMsg) ? errorMsg.join(", ") : errorMsg,
+        title: errorTitle,
+        description: errorDescription,
       });
     } finally {
       setIsSubmitting(false);
