@@ -10,6 +10,12 @@ import { AuthModule } from './auth/auth.module';
 import { RolesModule } from './roles/roles.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { RolePermissionsModule } from './role-permissions/role-permissions.module';
+import { AuditLogsModule } from './audit-logs/audit-logs.module';
+import { StudentProfilesModule } from './student-profiles/student-profiles.module';
+import { TeacherProfilesModule } from './teacher-profiles/teacher-profiles.module';
+import { ClassesModule } from './classes/classes.module';
+import { SubjectsModule } from './subjects/subjects.module';
+import { EnrollmentsModule } from './enrollments/enrollments.module';
 
 @Module({
   imports: [
@@ -44,6 +50,12 @@ import { RolePermissionsModule } from './role-permissions/role-permissions.modul
     RolesModule,
     PermissionsModule,
     RolePermissionsModule,
+    AuditLogsModule,
+    StudentProfilesModule,
+    TeacherProfilesModule,
+    ClassesModule,
+    SubjectsModule,
+    EnrollmentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
