@@ -71,6 +71,9 @@ export const baseApi = createApi({
     "User",
     "Institution",
     "Enrollment",
+    "Role",
+    "Permission",
+    "RolePermission",
   ],
   endpoints: () => ({}),
 });
