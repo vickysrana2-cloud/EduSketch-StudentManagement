@@ -177,6 +177,7 @@ export default function LoginPage() {
         email: response.user.email,
         role: response.user.role,
         avatar: response.user.avatar,
+        profileImage: (response.user as any).profileImage || response.user.avatar || null,
         institutionId: response.user.institutionId,
       };
 

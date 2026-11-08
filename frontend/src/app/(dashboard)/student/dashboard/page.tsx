@@ -26,6 +26,7 @@ import { RoleProtectedLayout } from "@/components/layouts/RoleProtectedLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { DoodleSpark } from "@/components/ui/doodles";
 import { useGetMyStudentProfileQuery } from "@/store/api/studentApi";
 import { useGetEnrollmentsQuery } from "@/store/api/enrollmentApi";
@@ -79,20 +80,30 @@ export default function StudentDashboardPage() {
         <div className="relative rounded-3xl bg-gradient-to-r from-[#EFFFF7] via-[#EAF6FF] to-[#FFFBE5] dark:from-[#112F24] dark:via-[#112338] dark:to-[#362E12] p-6 md:p-8 sketch-shadow rotate-sketch-sm overflow-hidden border border-emerald-200/60 dark:border-emerald-900/60">
           <div className="tape-accent" />
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
-            <div className="space-y-2 max-w-2xl">
-              <div className="flex items-center gap-2">
-                <Badge variant="green" className="text-sm px-3 py-1 font-bold">
-                  🎒 Student Learning Portal
-                </Badge>
-                <DoodleSpark className="h-5 w-5 text-emerald-500" />
-              </div>
+            <div className="flex items-center gap-4">
+              <UserAvatar
+                src={student?.profileImage || user?.profileImage}
+                name={student?.name || user?.name}
+                size="xl"
+                shape="rounded-2xl"
+                variant="emerald"
+                className="hidden sm:flex shadow-md ring-2 ring-emerald-200 dark:ring-emerald-900 shrink-0"
+              />
+              <div className="space-y-2 max-w-2xl">
+                <div className="flex items-center gap-2">
+                  <Badge variant="green" className="text-sm px-3 py-1 font-bold">
+                    🎒 Student Learning Portal
+                  </Badge>
+                  <DoodleSpark className="h-5 w-5 text-emerald-500" />
+                </div>
 
-              <h1 className="text-3xl md:text-4xl font-extrabold font-handwriting text-slate-900 dark:text-slate-100 leading-tight">
-                Hey, {student?.name || user?.name || "Student"}! 🌟
-              </h1>
-              <p className="text-slate-600 dark:text-slate-300 text-sm md:text-base leading-relaxed font-medium">
-                Academic progress portal. Live profile populated from <code>/student-profiles/me</code> and current classroom enrollments.
-              </p>
+                <h1 className="text-3xl md:text-4xl font-extrabold font-handwriting text-slate-900 dark:text-slate-100 leading-tight">
+                  Hey, {student?.name || user?.name || "Student"}! 🌟
+                </h1>
+                <p className="text-slate-600 dark:text-slate-300 text-sm md:text-base leading-relaxed font-medium">
+                  Academic progress portal. Live profile populated from <code>/student-profiles/me</code> and current classroom enrollments.
+                </p>
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-3">

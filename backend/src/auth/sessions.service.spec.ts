@@ -142,12 +142,9 @@ describe('SessionsService (Unit)', () => {
       const mockSessionDoc = {
         _id: sampleSessionId,
         userId: mockUserId,
-        revokedAt: null,
-        save: jest.fn().mockResolvedValue(true),
+        revokedAt: new Date(),
       };
-      mockSessionModel.findOne.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(mockSessionDoc),
-      });
+      mockSessionModel.findOneAndUpdate.mockResolvedValue(mockSessionDoc);
 
       await expect(
         service.revokeSessionById(
@@ -155,14 +152,22 @@ describe('SessionsService (Unit)', () => {
           mockUserId.toString(),
         ),
       ).resolves.not.toThrow();
-      expect(mockSessionDoc.revokedAt).toBeInstanceOf(Date);
-      expect(mockSessionDoc.save).toHaveBeenCalled();
+      expect(mockSessionModel.findOneAndUpdate).toHaveBeenCalledWith(
+        {
+          _id: expect.anything(),
+          userId: expect.anything(),
+        },
+        expect.objectContaining({
+          $set: expect.objectContaining({
+            revokedAt: expect.any(Date),
+          }),
+        }),
+        { new: true },
+      );
     });
 
     it('should throw NotFoundException if session does not exist or user mismatch', async () => {
-      mockSessionModel.findOne.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(null),
-      });
+      mockSessionModel.findOneAndUpdate.mockResolvedValue(null);
 
       await expect(
         service.revokeSessionById(

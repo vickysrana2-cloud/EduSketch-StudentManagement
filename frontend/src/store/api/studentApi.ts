@@ -85,6 +85,7 @@ function mapBackendStudentProfileToStudent(item: any): Student {
     class: item.class || "Grade 10",
     section: item.section || "A",
     status: normalizedStatus,
+    profileImage: user?.profileImage || item.profileImage || null,
     marks: item.marks || [],
     createdAt: item.createdAt,
     address: item.address || {

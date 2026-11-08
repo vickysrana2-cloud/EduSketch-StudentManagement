@@ -24,11 +24,13 @@ import {
   Trash2,
   RefreshCw,
   Info,
+  Edit3,
+  X,
 } from "lucide-react";
 
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { toggleTheme, setTheme } from "@/store/slices/uiSlice";
-import { logout } from "@/store/slices/authSlice";
+import { logout, setUser } from "@/store/slices/authSlice";
 import { clearAccessToken } from "@/lib/auth-session";
 import {
   useGetCurrentUserQuery,
@@ -37,6 +39,8 @@ import {
   useLogoutAllMutation,
   SessionItem,
 } from "@/store/api/authApi";
+import { useUpdateUserMutation } from "@/store/api/userApi";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -59,12 +63,19 @@ export default function SettingsPage() {
   // Dialog States
   const [sessionToRevoke, setSessionToRevoke] = useState<SessionItem | null>(null);
   const [isLogoutAllDialogOpen, setIsLogoutAllDialogOpen] = useState(false);
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editAvatarUrl, setEditAvatarUrl] = useState("");
 
   // ============================================================================
   // API Queries & Mutations
   // ============================================================================
 
-  const { data: userProfile, isLoading: isUserLoading } = useGetCurrentUserQuery();
+  const {
+    data: userProfile,
+    isLoading: isUserLoading,
+    refetch: refetchCurrentUser,
+  } = useGetCurrentUserQuery();
   const {
     data: sessionsData,
     isLoading: isSessionsLoading,
@@ -74,6 +85,7 @@ export default function SettingsPage() {
 
   const [revokeSession, { isLoading: isRevokingSession }] = useRevokeSessionMutation();
   const [logoutAll, { isLoading: isLoggingOutAll }] = useLogoutAllMutation();
+  const [updateUser, { isLoading: isUpdatingProfile }] = useUpdateUserMutation();
 
   const activeSessions = sessionsData?.sessions || [];
   const currentUserData = (userProfile || authUser) as any;
@@ -81,6 +93,52 @@ export default function SettingsPage() {
   // ============================================================================
   // Handlers
   // ============================================================================
+
+  const handleOpenEditProfile = () => {
+    setEditName(currentUserData?.name || "");
+    setEditAvatarUrl(currentUserData?.profileImage || "");
+    setIsEditProfileOpen(true);
+  };
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const userId = currentUserData?.id || currentUserData?._id;
+    if (!userId) return;
+
+    try {
+      await updateUser({
+        id: userId,
+        name: editName.trim(),
+        profileImage: editAvatarUrl.trim() || undefined,
+      }).unwrap();
+
+      if (authUser) {
+        dispatch(
+          setUser({
+            ...authUser,
+            name: editName.trim(),
+            profileImage: editAvatarUrl.trim() || null,
+          })
+        );
+      }
+
+      refetchCurrentUser();
+
+      toast({
+        type: "success",
+        title: "Profile Updated",
+        description: "Your profile details and avatar image have been updated successfully.",
+      });
+
+      setIsEditProfileOpen(false);
+    } catch (err: any) {
+      toast({
+        type: "error",
+        title: "Update Failed",
+        description: err?.data?.message || err?.message || "Could not update profile.",
+      });
+    }
+  };
 
   const handleConfirmRevokeSession = async () => {
     if (!sessionToRevoke) return;
@@ -194,17 +252,22 @@ export default function SettingsPage() {
       </div>
 
       {/* ==================================================================== */}
-      {/* TAB 1: PROFILE OVERVIEW (Read-only where edit endpoint not available) */}
+      {/* TAB 1: PROFILE OVERVIEW */}
       {/* ==================================================================== */}
       {activeTab === "profile" && (
         <div className="space-y-6">
           {/* Identity Card */}
           <div className="rounded-2xl bg-white dark:bg-[#141824] p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-6">
-            <div className="flex items-start justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
               <div className="flex items-center gap-4">
-                <div className="h-16 w-16 rounded-2xl bg-gradient-to-tr from-purple-500 to-indigo-600 flex items-center justify-center text-white font-bold text-2xl shadow-sm">
-                  {currentUserData?.name?.substring(0, 2).toUpperCase() || "U"}
-                </div>
+                <UserAvatar
+                  src={currentUserData?.profileImage}
+                  name={currentUserData?.name}
+                  size="xl"
+                  shape="rounded-2xl"
+                  variant="purple"
+                  className="shadow-sm ring-2 ring-purple-100 dark:ring-purple-950"
+                />
                 <div>
                   <h3 className="text-xl font-bold text-slate-900 dark:text-white font-handwriting">
                     {currentUserData?.name || "User"}
@@ -228,6 +291,16 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleOpenEditProfile}
+                className="rounded-xl flex items-center gap-1.5 text-xs font-semibold self-start"
+              >
+                <Edit3 className="h-3.5 w-3.5 text-purple-600" />
+                <span>Edit Profile</span>
+              </Button>
             </div>
 
             {/* Read-only profile fields notice */}
@@ -280,6 +353,18 @@ export default function SettingsPage() {
                       : "System-wide Platform Level"
                   }
                   className="rounded-xl bg-slate-50 dark:bg-slate-900 cursor-not-allowed text-xs"
+                />
+              </div>
+
+              <div className="space-y-1 sm:col-span-2">
+                <label className="text-xs font-semibold text-slate-500">Profile Avatar URL</label>
+                <Input
+                  disabled
+                  value={
+                    currentUserData?.profileImage ||
+                    "No avatar URL configured (default initials used)"
+                  }
+                  className="rounded-xl bg-slate-50 dark:bg-slate-900 cursor-not-allowed text-xs font-mono"
                 />
               </div>
             </div>
@@ -597,6 +682,100 @@ export default function SettingsPage() {
         variant="destructive"
         isLoading={isLoggingOutAll}
       />
+
+      {/* ==================================================================== */}
+      {/* EDIT PROFILE DETAILS MODAL */}
+      {/* ==================================================================== */}
+      {isEditProfileOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#141824] p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600">
+                  <Edit3 className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white font-handwriting">
+                    Edit Profile Details
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Update your display name and profile avatar image URL.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsEditProfileOpen(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveProfile} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Full Name *
+                </label>
+                <Input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  required
+                  className="rounded-xl"
+                  placeholder="Your display name"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Profile Avatar URL (Optional)
+                  </label>
+                  {editAvatarUrl && (
+                    <span className="text-[10px] text-slate-400 font-medium">Live Preview</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  <Input
+                    value={editAvatarUrl}
+                    onChange={(e) => setEditAvatarUrl(e.target.value)}
+                    placeholder="https://images.unsplash.com/..."
+                    className="rounded-xl flex-1 text-xs"
+                  />
+                  <UserAvatar
+                    src={editAvatarUrl}
+                    name={editName || currentUserData?.name}
+                    size="md"
+                    variant="purple"
+                    className="border border-slate-200 dark:border-slate-700 ring-2 ring-purple-100 dark:ring-purple-950"
+                  />
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Paste any public image URL (JPG, PNG, WebP) to display as your avatar.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsEditProfileOpen(false)}
+                  disabled={isUpdatingProfile}
+                  className="rounded-xl"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  isLoading={isUpdatingProfile}
+                  className="rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold"
+                >
+                  Save Changes
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

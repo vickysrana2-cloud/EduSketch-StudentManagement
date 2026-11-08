@@ -51,6 +51,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { useToast } from "@/components/ui/toast";
 
 const studentProfileEditSchema = z.object({
@@ -364,9 +365,17 @@ export default function StudentDetailsPage() {
         <div className="lg:col-span-1 space-y-6">
           <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 text-center space-y-4">
             {/* Avatar */}
-            <div className="h-24 w-24 mx-auto rounded-3xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-3xl shadow-lg shadow-blue-500/20 ring-4 ring-white dark:ring-slate-900">
-              {initial}
-            </div>
+            <UserAvatar
+              src={
+                student.profileImage ||
+                (typeof student.userId === "object" ? student.userId?.profileImage : null)
+              }
+              name={student.name}
+              size="2xl"
+              shape="rounded-3xl"
+              variant="blue"
+              className="mx-auto shadow-lg shadow-blue-500/20 ring-4 ring-white dark:ring-slate-900"
+            />
 
             <div className="space-y-1">
               <h2 className="text-xl font-bold text-slate-900 dark:text-white">

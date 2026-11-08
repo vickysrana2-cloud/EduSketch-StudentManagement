@@ -26,6 +26,7 @@ import { RoleProtectedLayout } from "@/components/layouts/RoleProtectedLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { DoodleSpark } from "@/components/ui/doodles";
 import { useGetStudentsQuery } from "@/store/api/studentApi";
 import { useGetTeachersQuery } from "@/store/api/teacherApi";
@@ -90,20 +91,29 @@ export default function AdminDashboardPage() {
         <div className="relative rounded-3xl bg-gradient-to-r from-[#EAF6FF] via-[#F4EEFF] to-[#FFF0F6] dark:from-[#112338] dark:via-[#231B3C] dark:to-[#361726] p-6 md:p-8 sketch-shadow rotate-sketch-sm overflow-hidden border border-blue-200/60 dark:border-blue-900/60">
           <div className="tape-accent" />
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
-            <div className="space-y-2 max-w-2xl">
-              <div className="flex items-center gap-2">
-                <Badge variant="blue" className="text-sm px-3 py-1 font-bold">
-                  🏫 Institutional Administration Console
-                </Badge>
-                <DoodleSpark className="h-5 w-5 text-[#FF6FAE]" />
-              </div>
+            <div className="flex items-center gap-4">
+              <UserAvatar
+                src={user?.profileImage}
+                name={user?.name}
+                size="xl"
+                shape="rounded-2xl"
+                className="hidden sm:flex shadow-md ring-2 ring-blue-200 dark:ring-blue-900 shrink-0"
+              />
+              <div className="space-y-2 max-w-2xl">
+                <div className="flex items-center gap-2">
+                  <Badge variant="blue" className="text-sm px-3 py-1 font-bold">
+                    🏫 Institutional Administration Console
+                  </Badge>
+                  <DoodleSpark className="h-5 w-5 text-[#FF6FAE]" />
+                </div>
 
-              <h1 className="text-3xl md:text-4xl font-extrabold font-handwriting text-slate-900 dark:text-slate-100 leading-tight">
-                Welcome back, {user?.name || "Administrator"}! 👋
-              </h1>
-              <p className="text-slate-600 dark:text-slate-300 text-sm md:text-base leading-relaxed font-medium">
-                Live institutional operations for {(user as any)?.institution?.name || "your institution"}. Total statistics calculated in real-time from active records.
-              </p>
+                <h1 className="text-3xl md:text-4xl font-extrabold font-handwriting text-slate-900 dark:text-slate-100 leading-tight">
+                  Welcome back, {user?.name || "Administrator"}! 👋
+                </h1>
+                <p className="text-slate-600 dark:text-slate-300 text-sm md:text-base leading-relaxed font-medium">
+                  Live institutional operations for {(user as any)?.institution?.name || "your institution"}. Total statistics calculated in real-time from active records.
+                </p>
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-3">

@@ -35,6 +35,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { useToast } from "@/components/ui/toast";
 import { DoodleSpark } from "@/components/ui/doodles";
 import { useForm } from "react-hook-form";
@@ -467,9 +468,15 @@ export default function TeacherListPage() {
                       {/* Avatar & Name */}
                       <td className="py-3.5 px-4 sm:px-6">
                         <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 shrink-0 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">
-                            {initial}
-                          </div>
+                          <UserAvatar
+                            src={
+                              teacher.profileImage ||
+                              (typeof teacher.userId === "object" ? teacher.userId?.profileImage : null)
+                            }
+                            name={teacher.name}
+                            size="md"
+                            variant="purple"
+                          />
                           <div>
                             <Link
                               href={`/teachers/${teacher.id}`}
@@ -582,9 +589,15 @@ export default function TeacherListPage() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="h-11 w-11 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center font-bold text-base shadow-sm">
-                      {initial}
-                    </div>
+                    <UserAvatar
+                      src={
+                        teacher.profileImage ||
+                        (typeof teacher.userId === "object" ? teacher.userId?.profileImage : null)
+                      }
+                      name={teacher.name}
+                      size="lg"
+                      variant="purple"
+                    />
                     <div>
                       <Link
                         href={`/teachers/${teacher.id}`}

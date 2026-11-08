@@ -18,6 +18,7 @@ import { clearAccessToken } from "@/lib/auth-session";
 import { authService } from "@/services/auth.service";
 import { useToast } from "@/components/ui/toast";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { Role } from "@/types";
 import { getRoleDashboardPath } from "@/components/providers/AuthGuard";
 
@@ -100,8 +101,6 @@ export function UserProfileMenu() {
   const roleStyle = ROLE_BADGE_STYLES[userRole] || ROLE_BADGE_STYLES.ADMIN;
   const dashboardPath = getRoleDashboardPath(userRole);
 
-  const initial = user?.name ? user.name.charAt(0).toUpperCase() : "U";
-
   return (
     <>
       <div className="relative" ref={menuRef}>
@@ -113,9 +112,12 @@ export function UserProfileMenu() {
           aria-haspopup="true"
         >
           {/* Avatar Icon */}
-          <div className="h-9 w-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-sm ring-2 ring-white dark:ring-slate-900">
-            {initial}
-          </div>
+          <UserAvatar
+            src={user?.profileImage}
+            name={user?.name}
+            size="sm"
+            className="ring-2 ring-white dark:ring-slate-900 shadow-sm"
+          />
 
           {/* User Name & Role (Desktop) */}
           <div className="hidden sm:block text-left">
@@ -140,23 +142,31 @@ export function UserProfileMenu() {
         {isOpen && (
           <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-white dark:bg-slate-900 shadow-xl border border-slate-200/80 dark:border-slate-800/80 p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
             {/* User Profile Header Card */}
-            <div className="px-3 py-2.5 border-b border-slate-100 dark:border-slate-800 space-y-1">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                  {user?.name || "Active User"}
+            <div className="p-3 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
+              <UserAvatar
+                src={user?.profileImage}
+                name={user?.name}
+                size="md"
+                className="ring-2 ring-slate-100 dark:ring-slate-800"
+              />
+              <div className="min-w-0 flex-1 space-y-0.5">
+                <div className="flex items-center justify-between gap-1">
+                  <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                    {user?.name || "Active User"}
+                  </p>
+                  <span
+                    className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${roleStyle.border} ${roleStyle.bg} ${roleStyle.text} shrink-0`}
+                  >
+                    {userRole}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                  {user?.email || "user@ems.edu"}
                 </p>
-                <span
-                  className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${roleStyle.border} ${roleStyle.bg} ${roleStyle.text}`}
-                >
-                  {userRole}
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                {user?.email || "user@ems.edu"}
-              </p>
-              <div className="flex items-center gap-1.5 pt-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
-                <ShieldCheck className="h-3 w-3" />
-                <span>Session Verified & Active</span>
+                <div className="flex items-center gap-1.5 pt-0.5 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                  <ShieldCheck className="h-3 w-3 shrink-0" />
+                  <span>Session Active</span>
+                </div>
               </div>
             </div>
 

@@ -38,6 +38,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { useToast } from "@/components/ui/toast";
 import { InstitutionStatus, InstitutionType } from "@/types";
 
@@ -115,6 +116,7 @@ export default function InstitutionDetailPage() {
     register: registerAdmin,
     handleSubmit: handleSubmitAdmin,
     reset: resetAdmin,
+    watch: watchAdmin,
     formState: { errors: adminErrors },
   } = useForm<CreateAdminFormData>({
     resolver: zodResolver(createAdminSchema),
@@ -125,6 +127,9 @@ export default function InstitutionDetailPage() {
       profileImage: "",
     },
   });
+
+  const watchAdminAvatar = watchAdmin("profileImage");
+  const watchAdminName = watchAdmin("name");
 
   const onSaveInstitution = async (data: EditInstitutionFormData) => {
     try {
@@ -539,6 +544,35 @@ export default function InstitutionDetailPage() {
                   {...registerAdmin("password")}
                   error={adminErrors.password?.message}
                 />
+
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Profile Avatar URL (Optional)
+                    </label>
+                    {watchAdminAvatar && (
+                      <span className="text-[10px] text-slate-400 font-medium">Live Preview</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Input
+                      placeholder="https://example.com/avatar.jpg"
+                      {...registerAdmin("profileImage")}
+                      className="rounded-xl flex-1 text-xs"
+                    />
+                    <UserAvatar
+                      src={watchAdminAvatar}
+                      name={watchAdminName || "Admin"}
+                      size="md"
+                      className="border border-slate-200 dark:border-slate-700 ring-2 ring-purple-50 dark:ring-purple-950"
+                    />
+                  </div>
+                  {adminErrors.profileImage && (
+                    <p className="text-[11px] text-red-500 mt-1">
+                      {adminErrors.profileImage.message}
+                    </p>
+                  )}
+                </div>
 
                 <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                   <Button

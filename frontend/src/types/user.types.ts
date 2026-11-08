@@ -24,6 +24,7 @@ export interface UserSummaryDto {
   isEmailVerified: boolean;
   institutionId: string | null;
   avatar?: string | null;
+  profileImage?: string | null;
   lastLoginAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
@@ -51,6 +52,7 @@ export interface UpdateUserDto {
   name?: string;
   email?: string;
   avatar?: string | null;
+  profileImage?: string | null;
 }
 
 export interface UpdateUserStatusDto {

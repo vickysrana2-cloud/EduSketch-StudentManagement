@@ -45,6 +45,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { useToast } from "@/components/ui/toast";
 import { DoodleSpark } from "@/components/ui/doodles";
 
@@ -59,6 +60,7 @@ const createUserSchema = z.object({
   role: z.enum(["SUPER_ADMIN", "ADMIN", "TEACHER", "STUDENT"]),
   institutionId: z.string().optional().nullable(),
   status: z.enum(["ACTIVE", "INACTIVE", "SUSPENDED"]),
+  profileImage: z.string().url("Must be a valid URL").or(z.literal("")).optional(),
 });
 
 const editUserSchema = z.object({
@@ -150,19 +152,26 @@ export default function UsersManagementPage() {
       role: isSuperAdmin ? "ADMIN" : "TEACHER",
       institutionId: currentUser?.institutionId || "",
       status: "ACTIVE",
+      profileImage: "",
     },
   });
 
   const watchSelectedRole = watchCreate("role");
+  const watchCreateAvatar = watchCreate("profileImage");
+  const watchCreateName = watchCreate("name");
 
   const {
     register: registerEdit,
     handleSubmit: handleSubmitEdit,
     reset: resetEdit,
+    watch: watchEdit,
     formState: { errors: editErrors },
   } = useForm<EditUserFormData>({
     resolver: zodResolver(editUserSchema),
   });
+
+  const watchEditAvatar = watchEdit("profileImage");
+  const watchEditName = watchEdit("name");
 
   // Open Edit Modal with user data
   const handleOpenEdit = (user: UserItem) => {
@@ -182,6 +191,7 @@ export default function UsersManagementPage() {
     try {
       const payload = {
         ...data,
+        profileImage: data.profileImage || undefined,
         institutionId:
           data.role === "SUPER_ADMIN" ? null : data.institutionId || currentUser?.institutionId || null,
       };
@@ -561,17 +571,12 @@ export default function UsersManagementPage() {
                         {/* User Identity */}
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-3">
-                            {u.profileImage ? (
-                              <img
-                                src={u.profileImage}
-                                alt={u.name}
-                                className="h-10 w-10 rounded-full object-cover border border-slate-200 dark:border-slate-700"
-                              />
-                            ) : (
-                              <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-xs">
-                                {u.name.substring(0, 2).toUpperCase()}
-                              </div>
-                            )}
+                            <UserAvatar
+                              src={u.profileImage}
+                              name={u.name}
+                              size="md"
+                              className="border border-slate-200 dark:border-slate-700"
+                            />
                             <div>
                               <div className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
                                 <span>{u.name}</span>
@@ -889,6 +894,35 @@ export default function UsersManagementPage() {
                   </select>
                 </div>
 
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Profile Avatar URL (Optional)
+                    </label>
+                    {watchCreateAvatar && (
+                      <span className="text-[10px] text-slate-400 font-medium">Live Preview</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Input
+                      placeholder="https://example.com/avatar.jpg"
+                      {...registerCreate("profileImage")}
+                      className="rounded-xl flex-1"
+                    />
+                    <UserAvatar
+                      src={watchCreateAvatar}
+                      name={watchCreateName || "New User"}
+                      size="md"
+                      className="border border-slate-200 dark:border-slate-700 ring-2 ring-indigo-50 dark:ring-indigo-950"
+                    />
+                  </div>
+                  {createErrors.profileImage && (
+                    <p className="text-[11px] text-red-500 mt-1">
+                      {createErrors.profileImage.message}
+                    </p>
+                  )}
+                </div>
+
                 <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
                   <Button
                     type="button"
@@ -962,14 +996,27 @@ export default function UsersManagementPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Profile Avatar URL (Optional)
-                  </label>
-                  <Input
-                    placeholder="https://example.com/avatar.jpg"
-                    {...registerEdit("profileImage")}
-                    className="rounded-xl"
-                  />
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Profile Avatar URL (Optional)
+                    </label>
+                    {watchEditAvatar && (
+                      <span className="text-[10px] text-slate-400 font-medium">Live Preview</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Input
+                      placeholder="https://example.com/avatar.jpg"
+                      {...registerEdit("profileImage")}
+                      className="rounded-xl flex-1"
+                    />
+                    <UserAvatar
+                      src={watchEditAvatar}
+                      name={watchEditName || editingUser?.name || "User"}
+                      size="md"
+                      className="border border-slate-200 dark:border-slate-700 ring-2 ring-indigo-50 dark:ring-indigo-950"
+                    />
+                  </div>
                   {editErrors.profileImage && (
                     <p className="text-[11px] text-red-500 mt-1">
                       {editErrors.profileImage.message}

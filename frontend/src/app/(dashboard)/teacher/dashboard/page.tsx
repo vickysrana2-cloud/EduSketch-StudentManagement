@@ -24,6 +24,7 @@ import { RoleProtectedLayout } from "@/components/layouts/RoleProtectedLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { DoodleSpark } from "@/components/ui/doodles";
 import { useGetMyTeacherProfileQuery } from "@/store/api/teacherApi";
 import { useGetClassesQuery, useGetSubjectsQuery } from "@/store/api/academicApi";
@@ -90,20 +91,30 @@ export default function TeacherDashboardPage() {
         <div className="relative rounded-3xl bg-gradient-to-r from-[#F4EEFF] via-[#FFF0F6] to-[#FFFBE5] dark:from-[#231B3C] dark:via-[#361726] dark:to-[#362E12] p-6 md:p-8 sketch-shadow rotate-sketch-sm overflow-hidden border border-violet-200/60 dark:border-violet-900/60">
           <div className="tape-accent" />
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
-            <div className="space-y-2 max-w-2xl">
-              <div className="flex items-center gap-2">
-                <Badge variant="purple" className="text-sm px-3 py-1 font-bold">
-                  👩‍🏫 Faculty Workspace
-                </Badge>
-                <DoodleSpark className="h-5 w-5 text-violet-500" />
-              </div>
+            <div className="flex items-center gap-4">
+              <UserAvatar
+                src={teacher?.profileImage || user?.profileImage}
+                name={teacher?.name || user?.name}
+                size="xl"
+                shape="rounded-2xl"
+                variant="purple"
+                className="hidden sm:flex shadow-md ring-2 ring-violet-200 dark:ring-violet-900 shrink-0"
+              />
+              <div className="space-y-2 max-w-2xl">
+                <div className="flex items-center gap-2">
+                  <Badge variant="purple" className="text-sm px-3 py-1 font-bold">
+                    👩‍🏫 Faculty Workspace
+                  </Badge>
+                  <DoodleSpark className="h-5 w-5 text-violet-500" />
+                </div>
 
-              <h1 className="text-3xl md:text-4xl font-extrabold font-handwriting text-slate-900 dark:text-slate-100 leading-tight">
-                Welcome back, {teacher?.name || user?.name || "Professor"}! 📚
-              </h1>
-              <p className="text-slate-600 dark:text-slate-300 text-sm md:text-base leading-relaxed font-medium">
-                Academic classroom workspace. Assigned cohorts and curriculum modules are populated directly from your active faculty profile (<code>/teacher-profiles/me</code>).
-              </p>
+                <h1 className="text-3xl md:text-4xl font-extrabold font-handwriting text-slate-900 dark:text-slate-100 leading-tight">
+                  Welcome back, {teacher?.name || user?.name || "Professor"}! 📚
+                </h1>
+                <p className="text-slate-600 dark:text-slate-300 text-sm md:text-base leading-relaxed font-medium">
+                  Academic classroom workspace. Assigned cohorts and curriculum modules are populated directly from your active faculty profile (<code>/teacher-profiles/me</code>).
+                </p>
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-3">

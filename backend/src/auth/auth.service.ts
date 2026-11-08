@@ -91,6 +91,7 @@ export class AuthService {
       status: UserStatus;
       isEmailVerified: boolean;
       institutionId: string | null;
+      profileImage?: string | null;
       lastLoginAt: Date | null;
     };
   }> {
@@ -279,6 +280,7 @@ export class AuthService {
         status: user.status,
         isEmailVerified: user.isEmailVerified,
         institutionId: institutionIdStr,
+        profileImage: user.profileImage || null,
         lastLoginAt: updatedUser?.lastLoginAt || new Date(),
       },
     };
@@ -305,6 +307,7 @@ export class AuthService {
         code: string;
         status: InstitutionStatus;
       };
+      profileImage?: string | null;
       createdAt: Date;
     };
   }> {
@@ -436,6 +439,7 @@ export class AuthService {
           role: savedUser.role,
           status: savedUser.status,
           isEmailVerified: savedUser.isEmailVerified,
+          profileImage: savedUser.profileImage || null,
           institution: {
             id: institution._id.toString(),
             name: institution.name,

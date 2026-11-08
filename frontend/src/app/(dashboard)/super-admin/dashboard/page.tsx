@@ -30,6 +30,7 @@ import { useGetAuditLogsQuery } from "@/store/api/auditLogApi";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { DoodleSpark, DoodleStar } from "@/components/ui/doodles";
 
 export default function SuperAdminDashboardPage() {
@@ -85,20 +86,30 @@ export default function SuperAdminDashboardPage() {
         <div className="relative rounded-3xl bg-gradient-to-r from-[#FFFBE5] via-[#FFF1E8] to-[#EAF6FF] dark:from-[#362E12] dark:via-[#3A1F1B] dark:to-[#112338] p-6 md:p-8 sketch-shadow rotate-sketch-sm overflow-hidden border border-amber-200/60 dark:border-amber-900/60">
           <div className="tape-accent" />
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
-            <div className="space-y-2 max-w-2xl">
-              <div className="flex items-center gap-2">
-                <Badge variant="yellow" className="text-sm px-3 py-1 font-bold">
-                  👑 Platform Super Admin Console
-                </Badge>
-                <DoodleSpark className="h-5 w-5 text-amber-500" />
-              </div>
+            <div className="flex items-center gap-4">
+              <UserAvatar
+                src={user?.profileImage}
+                name={user?.name}
+                size="xl"
+                shape="rounded-2xl"
+                variant="amber"
+                className="hidden sm:flex shadow-md ring-2 ring-amber-200 dark:ring-amber-900 shrink-0"
+              />
+              <div className="space-y-2 max-w-2xl">
+                <div className="flex items-center gap-2">
+                  <Badge variant="yellow" className="text-sm px-3 py-1 font-bold">
+                    👑 Platform Super Admin Console
+                  </Badge>
+                  <DoodleSpark className="h-5 w-5 text-amber-500" />
+                </div>
 
-              <h1 className="text-3xl md:text-4xl font-extrabold font-handwriting text-slate-900 dark:text-slate-100 leading-tight">
-                Welcome, {user?.name || "Director"}!
-              </h1>
-              <p className="text-slate-600 dark:text-slate-300 text-sm md:text-base leading-relaxed font-medium">
-                Multi-tenant SaaS operational overview. Derived directly from live platform records without synthetic dashboard endpoints.
-              </p>
+                <h1 className="text-3xl md:text-4xl font-extrabold font-handwriting text-slate-900 dark:text-slate-100 leading-tight">
+                  Welcome, {user?.name || "Director"}!
+                </h1>
+                <p className="text-slate-600 dark:text-slate-300 text-sm md:text-base leading-relaxed font-medium">
+                  Multi-tenant SaaS operational overview. Derived directly from live platform records without synthetic dashboard endpoints.
+                </p>
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-3">

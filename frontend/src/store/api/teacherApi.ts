@@ -52,6 +52,7 @@ function mapBackendTeacherProfileToTeacher(item: any): Teacher {
     assignedSubjectIds,
     subjects: specialization.length > 0 ? specialization : ["Mathematics", "Sciences"],
     status: normalizedStatus,
+    profileImage: user?.profileImage || item.profileImage || null,
     createdAt: item.createdAt,
     userId: item.userId,
   };

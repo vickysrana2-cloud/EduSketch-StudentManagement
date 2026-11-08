@@ -73,6 +73,7 @@ export function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
           email: currentUserData.email,
           role: currentUserData.role,
           avatar: currentUserData.avatar,
+          profileImage: (currentUserData as any).profileImage || currentUserData.avatar || null,
           institutionId: currentUserData.institutionId,
         })
       );

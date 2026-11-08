@@ -33,6 +33,7 @@ export interface User {
   email: string;
   role: Role;
   avatar?: string | null;
+  profileImage?: string | null;
   institutionId?: string | null;
 }
 
@@ -73,6 +74,7 @@ export interface Student {
     email?: string | null;
     occupation?: string | null;
   }>;
+  profileImage?: string | null;
   userId?: any;
   institutionId?: string;
 }
@@ -92,6 +94,7 @@ export interface Teacher {
   assignedSubjectIds?: string[];
   subjects?: string[];
   status?: "active" | "inactive" | string;
+  profileImage?: string | null;
   createdAt?: string;
   userId?: any;
 }

@@ -28,6 +28,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { useToast } from "@/components/ui/toast";
 import { DoodleSpark } from "@/components/ui/doodles";
 
@@ -361,9 +362,15 @@ export default function StudentListPage() {
                       {/* Avatar & Name */}
                       <td className="py-3.5 px-4 sm:px-6">
                         <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 shrink-0 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-xs">
-                            {initial}
-                          </div>
+                          <UserAvatar
+                            src={
+                              student.profileImage ||
+                              (typeof student.userId === "object" ? student.userId?.profileImage : null)
+                            }
+                            name={student.name}
+                            size="md"
+                            variant="blue"
+                          />
                           <div>
                             <Link
                               href={`/students/${student.id}`}
@@ -462,9 +469,15 @@ export default function StudentListPage() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="h-12 w-12 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-base shadow-xs">
-                      {initial}
-                    </div>
+                    <UserAvatar
+                      src={
+                        student.profileImage ||
+                        (typeof student.userId === "object" ? student.userId?.profileImage : null)
+                      }
+                      name={student.name}
+                      size="lg"
+                      variant="blue"
+                    />
                     <div>
                       <Link
                         href={`/students/${student.id}`}
