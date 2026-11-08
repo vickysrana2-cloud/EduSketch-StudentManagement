@@ -51,6 +51,7 @@ const editInstitutionSchema = z.object({
   street: z.string().min(3, "Street address required"),
   city: z.string().min(2, "City required"),
   state: z.string().min(2, "State required"),
+  country: z.string().min(2, "Country required"),
   postalCode: z.string().min(3, "Postal code required"),
 });
 
@@ -104,6 +105,7 @@ export default function InstitutionDetailPage() {
       street: institution?.address?.street || "",
       city: institution?.address?.city || "",
       state: institution?.address?.state || "",
+      country: institution?.address?.country || "India",
       postalCode: institution?.address?.postalCode || "",
     },
   });
@@ -126,6 +128,7 @@ export default function InstitutionDetailPage() {
 
   const onSaveInstitution = async (data: EditInstitutionFormData) => {
     try {
+      const cleanPhone = data.phone.replace(/[\s\-\(\)]/g, "");
       await updateInstitution({
         id,
         data: {
@@ -133,11 +136,12 @@ export default function InstitutionDetailPage() {
           code: data.code.trim().toUpperCase(),
           type: data.type,
           email: data.email.trim().toLowerCase(),
-          phone: data.phone.trim(),
+          phone: cleanPhone,
           address: {
             street: data.street.trim(),
             city: data.city.trim(),
             state: data.state.trim(),
+            country: (data.country || institution?.address?.country || "India").trim(),
             postalCode: data.postalCode.trim(),
           },
         },
@@ -364,6 +368,12 @@ export default function InstitutionDetailPage() {
                     label="State / Province"
                     {...registerEdit("state")}
                     error={editErrors.state?.message}
+                  />
+
+                  <Input
+                    label="Country"
+                    {...registerEdit("country")}
+                    error={editErrors.country?.message}
                   />
 
                   <Input

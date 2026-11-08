@@ -56,6 +56,7 @@ const createInstitutionSchema = z.object({
   street: z.string().min(3, "Street address required"),
   city: z.string().min(2, "City required"),
   state: z.string().min(2, "State required"),
+  country: z.string().min(2, "Country required"),
   postalCode: z.string().min(3, "Postal code required"),
   plan: z.enum(["BASIC", "STANDARD", "PREMIUM"]),
 });
@@ -116,6 +117,7 @@ export default function SuperAdminInstitutionsPage() {
       street: "100 Campus Boulevard",
       city: "Springfield",
       state: "IL",
+      country: "United States",
       postalCode: "62701",
       plan: "STANDARD",
     },
@@ -153,6 +155,7 @@ export default function SuperAdminInstitutionsPage() {
           street: data.street.trim(),
           city: data.city.trim(),
           state: data.state.trim(),
+          country: (data.country || "India").trim(),
           postalCode: data.postalCode.trim(),
         },
         status: "ACTIVE",
@@ -527,6 +530,13 @@ export default function SuperAdminInstitutionsPage() {
                     placeholder="IL"
                     {...registerInst("state")}
                     error={instErrors.state?.message}
+                  />
+
+                  <Input
+                    label="Country"
+                    placeholder="United States"
+                    {...registerInst("country")}
+                    error={instErrors.country?.message}
                   />
 
                   <Input

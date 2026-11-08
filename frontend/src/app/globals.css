@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer base {
   :root {
     /* Children Premium Color System Tokens */
@@ -66,7 +68,8 @@
     background-size: 24px 24px;
   }
 
-  .dark body {
+  .dark body,
+  body.dark {
     background-image: radial-gradient(rgba(139, 109, 255, 0.15) 1.5px, transparent 0);
   }
 }

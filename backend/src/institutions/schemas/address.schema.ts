@@ -11,7 +11,7 @@ export class Address {
   @Prop({ required: true, trim: true })
   state: string;
 
-  @Prop({ required: true, trim: true })
+  @Prop({ required: false, default: 'India', trim: true })
   country: string;
 
   @Prop({ required: true, trim: true })

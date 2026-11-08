@@ -25,7 +25,7 @@ export class SessionsService {
   constructor(
     @InjectModel(Session.name)
     private readonly sessionModel: Model<SessionDocument>,
-  ) {}
+  ) { }
 
   /**
    * Generates a high-entropy, cryptographically random refresh token (Requirement 2)
@@ -195,23 +195,22 @@ export class SessionsService {
       throw new NotFoundException(`Invalid session ID format: '${sessionId}'`);
     }
 
-    const session = await this.sessionModel
-      .findOne({
+    const result = await this.sessionModel.findOneAndUpdate(
+      {
         _id: new Types.ObjectId(sessionId),
         userId: new Types.ObjectId(userId),
-      })
-      .exec();
+      },
+      {
+        $set: {
+          revokedAt: new Date(),
+        },
+      },
+      { new: true },
+    );
 
-    if (!session) {
+    if (!result) {
       throw new NotFoundException('Session not found or does not belong to the current user');
     }
-
-    if (session.revokedAt !== null) {
-      return; // Already revoked
-    }
-
-    session.revokedAt = new Date();
-    await session.save();
 
     this.logger.log(`Session '${sessionId}' manually revoked by User '${userId}'`);
   }

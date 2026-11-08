@@ -13,6 +13,7 @@ import {
   LogOut,
   AlertTriangle,
   CheckCircle2,
+  Check,
   Lock,
   KeyRound,
   Sun,
@@ -26,7 +27,7 @@ import {
 } from "lucide-react";
 
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { toggleTheme } from "@/store/slices/uiSlice";
+import { toggleTheme, setTheme } from "@/store/slices/uiSlice";
 import { logout } from "@/store/slices/authSlice";
 import { clearAccessToken } from "@/lib/auth-session";
 import {
@@ -155,11 +156,10 @@ export default function SettingsPage() {
       <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800">
         <button
           onClick={() => setActiveTab("profile")}
-          className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${
-            activeTab === "profile"
-              ? "border-purple-600 text-purple-600 dark:border-purple-400 dark:text-purple-400"
-              : "border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-          }`}
+          className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${activeTab === "profile"
+            ? "border-purple-600 text-purple-600 dark:border-purple-400 dark:text-purple-400"
+            : "border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+            }`}
         >
           <User className="h-4 w-4" />
           <span>Profile Overview</span>
@@ -167,11 +167,10 @@ export default function SettingsPage() {
 
         <button
           onClick={() => setActiveTab("security")}
-          className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${
-            activeTab === "security"
-              ? "border-purple-600 text-purple-600 dark:border-purple-400 dark:text-purple-400"
-              : "border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-          }`}
+          className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${activeTab === "security"
+            ? "border-purple-600 text-purple-600 dark:border-purple-400 dark:text-purple-400"
+            : "border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+            }`}
         >
           <ShieldCheck className="h-4 w-4" />
           <span>Security & Sessions</span>
@@ -184,11 +183,10 @@ export default function SettingsPage() {
 
         <button
           onClick={() => setActiveTab("preferences")}
-          className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${
-            activeTab === "preferences"
-              ? "border-purple-600 text-purple-600 dark:border-purple-400 dark:text-purple-400"
-              : "border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-          }`}
+          className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${activeTab === "preferences"
+            ? "border-purple-600 text-purple-600 dark:border-purple-400 dark:text-purple-400"
+            : "border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+            }`}
         >
           <Sun className="h-4 w-4" />
           <span>Interface & Theme</span>
@@ -489,36 +487,82 @@ export default function SettingsPage() {
       {/* ==================================================================== */}
       {activeTab === "preferences" && (
         <div className="space-y-6">
-          <div className="rounded-2xl bg-white dark:bg-[#141824] p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
+          <div className="rounded-2xl bg-white dark:bg-[#141824] p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-6">
             <div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white font-handwriting flex items-center gap-2">
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white font-handwriting flex items-center gap-2">
                 <Sun className="h-5 w-5 text-amber-500" />
-                <span>Color Theme</span>
+                <span>Color Palette & Theme Mode</span>
               </h3>
-              <p className="text-xs text-slate-500">
-                Toggle between light paper mode and dark notebook palette.
+              <p className="text-xs text-slate-500 mt-1">
+                Toggle between light paper mode and dark notebook palette across your entire dashboard.
               </p>
             </div>
 
-            <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800">
-              <div>
-                <div className="font-semibold text-sm text-slate-900 dark:text-white capitalize">
-                  Current: {theme} Mode
-                </div>
-                <div className="text-xs text-slate-500">
-                  Adaptive styling applied across all dashboard modules.
-                </div>
-              </div>
-
-              <Button
+            {/* Visual Theme Selection Cards - Fully Clickable */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Light Paper Option */}
+              <button
                 type="button"
-                variant="outline"
-                onClick={() => dispatch(toggleTheme())}
-                className="rounded-xl flex items-center gap-1.5 text-xs font-semibold"
+                onClick={() => dispatch(setTheme("light"))}
+                className={`text-left w-full rounded-2xl p-5 border-2 transition-all duration-200 flex flex-col justify-between space-y-3 cursor-pointer ${theme === "light"
+                    ? "border-amber-400 dark:border-amber-400 bg-amber-50/70 dark:bg-amber-950/20 shadow-md ring-2 ring-amber-400/30 scale-[1.01]"
+                    : "border-slate-200 hover:border-slate-300 dark:border-slate-800 dark:hover:border-slate-700 bg-white dark:bg-[#141824] opacity-80 hover:opacity-100"
+                  }`}
               >
-                {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-                <span>Switch to {theme === "dark" ? "Light" : "Dark"} Mode</span>
-              </Button>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="h-9 w-9 rounded-xl bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 flex items-center justify-center font-bold shadow-xs">
+                      <Sun className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm text-slate-900 dark:text-slate-100">Light Paper Mode</h4>
+                      <p className="text-[11px] text-slate-500">Natural sketchbook style</p>
+                    </div>
+                  </div>
+                  {theme === "light" ? (
+                    <span className="flex items-center gap-1 text-[11px] font-bold text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/40 px-2.5 py-1 rounded-full border border-amber-300 dark:border-amber-700">
+                      <Check className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" /> Active
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-slate-400 font-medium">Select</span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                  Warm natural paper background with sketchbook grid and high contrast ink tones.
+                </p>
+              </button>
+
+              {/* Dark Notebook Option */}
+              <button
+                type="button"
+                onClick={() => dispatch(setTheme("dark"))}
+                className={`text-left w-full rounded-2xl p-5 border-2 transition-all duration-200 flex flex-col justify-between space-y-3 cursor-pointer ${theme === "dark"
+                    ? "border-purple-500 dark:border-purple-500 bg-[#1F1934] dark:bg-[#1E1736] shadow-md ring-2 ring-purple-500/30 scale-[1.01]"
+                    : "border-slate-200 hover:border-slate-300 dark:border-slate-800 dark:hover:border-slate-700 bg-white dark:bg-[#141824] opacity-80 hover:opacity-100"
+                  }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="h-9 w-9 rounded-xl bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 flex items-center justify-center font-bold shadow-xs border border-purple-200 dark:border-purple-800/60">
+                      <Moon className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm text-slate-900 dark:text-white">Dark Notebook Palette</h4>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">Midnight charcoal paper</p>
+                    </div>
+                  </div>
+                  {theme === "dark" ? (
+                    <span className="flex items-center gap-1 text-[11px] font-bold text-purple-200 bg-purple-900/60 px-2.5 py-1 rounded-full border border-purple-500">
+                      <Check className="h-3.5 w-3.5 text-purple-400" /> Active
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-slate-400 font-medium">Select</span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                  Deep midnight slate palette with glowing neon accents and reduced eye strain.
+                </p>
+              </button>
             </div>
           </div>
         </div>

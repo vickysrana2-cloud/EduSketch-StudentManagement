@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Schema as MongooseSchema, Types } from 'mongoose';
+import * as crypto from 'crypto';
 
 export type SessionDocument = Session & Document;
 
@@ -27,6 +28,7 @@ export class Session {
   @Prop({
     type: String,
     required: true,
+    default: () => crypto.randomUUID(),
     index: true,
   })
   tokenFamily: string;

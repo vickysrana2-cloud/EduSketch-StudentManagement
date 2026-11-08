@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class AddressDto {
   @ApiProperty({
@@ -26,13 +26,14 @@ export class AddressDto {
   @IsNotEmpty()
   state: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Country where the institution is located',
     example: 'India',
+    default: 'India',
   })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  country: string;
+  country?: string;
 
   @ApiProperty({
     description: 'Postal/Zip code',
