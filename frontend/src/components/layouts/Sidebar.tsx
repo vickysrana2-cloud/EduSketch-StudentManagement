@@ -12,6 +12,7 @@ import {
   ClipboardList,
   Award,
   FileSpreadsheet,
+  CreditCard,
   Settings,
   Building2,
   UserCheck,
@@ -150,6 +151,15 @@ const navItems: NavItem[] = [
     color: "#FF9F43",
     bgColor: "#FFFBE5",
     borderColor: "#FFE27A",
+  },
+  {
+    name: "Fees",
+    href: "/fees",
+    icon: <CreditCard className="h-5 w-5" />,
+    roles: ["SUPER_ADMIN", "ADMIN", "STUDENT"],
+    color: "#4D9FFF",
+    bgColor: "#EAF6FF",
+    borderColor: "#8DD8FF",
   },
   {
     name: "Audit Logs",

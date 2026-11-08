@@ -57,9 +57,12 @@ export class AuthController {
         | 'strict'
         | 'none') || 'lax';
 
+    // RFC 6265bis: SameSite=None strictly requires Secure=true in all modern browsers
+    const isSecure = isProduction || sameSiteMode === 'none';
+
     return {
       httpOnly: true,
-      secure: isProduction,
+      secure: isSecure,
       sameSite: sameSiteMode,
       path: '/api/auth',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
@@ -75,9 +78,11 @@ export class AuthController {
         | 'strict'
         | 'none') || 'lax';
 
+    const isSecure = isProduction || sameSiteMode === 'none';
+
     return {
       httpOnly: true,
-      secure: isProduction,
+      secure: isSecure,
       sameSite: sameSiteMode,
       path: '/api/auth',
     };
