@@ -74,6 +74,8 @@ export const baseApi = createApi({
     "Role",
     "Permission",
     "RolePermission",
+    "Session",
+    "AuditLog",
   ],
   endpoints: () => ({}),
 });

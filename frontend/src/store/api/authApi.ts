@@ -24,6 +24,7 @@ export interface BackendUser {
   } | null;
   avatar?: string;
   lastLoginAt?: string | null;
+  createdAt?: string;
 }
 
 export interface LoginResponse {
@@ -37,6 +38,21 @@ export interface RefreshResponse {
   accessToken: string;
   tokenType: string;
   expiresIn: string;
+}
+
+export interface SessionItem {
+  id: string;
+  tokenFamily: string;
+  ipAddress: string;
+  userAgent: string;
+  createdAt: string;
+  expiresAt: string;
+}
+
+export interface ActiveSessionsResponse {
+  message: string;
+  count: number;
+  sessions: SessionItem[];
 }
 
 export const authApi = baseApi.injectEndpoints({
@@ -69,6 +85,27 @@ export const authApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["User"],
     }),
+
+    getActiveSessions: builder.query<ActiveSessionsResponse, void>({
+      query: () => "/auth/sessions",
+      providesTags: ["Session"],
+    }),
+
+    revokeSession: builder.mutation<{ message: string }, string>({
+      query: (sessionId) => ({
+        url: `/auth/sessions/${sessionId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Session"],
+    }),
+
+    logoutAll: builder.mutation<{ message: string }, void>({
+      query: () => ({
+        url: "/auth/logout-all",
+        method: "POST",
+      }),
+      invalidatesTags: ["Session", "User"],
+    }),
   }),
 });
 
@@ -77,4 +114,7 @@ export const {
   useGetCurrentUserQuery,
   useRefreshTokenMutation,
   useLogoutMutation,
+  useGetActiveSessionsQuery,
+  useRevokeSessionMutation,
+  useLogoutAllMutation,
 } = authApi;

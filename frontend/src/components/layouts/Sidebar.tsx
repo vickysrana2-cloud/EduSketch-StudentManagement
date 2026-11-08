@@ -17,6 +17,7 @@ import {
   UserCheck,
   UserCog,
   ShieldCheck,
+  Activity,
   ChevronLeft,
   ChevronRight,
   LogOut,
@@ -149,6 +150,15 @@ const navItems: NavItem[] = [
     color: "#FF9F43",
     bgColor: "#FFFBE5",
     borderColor: "#FFE27A",
+  },
+  {
+    name: "Audit Logs",
+    href: "/audit-logs",
+    icon: <Activity className="h-5 w-5" />,
+    roles: ["SUPER_ADMIN", "ADMIN"],
+    color: "#F59E0B",
+    bgColor: "#FEF3C7",
+    borderColor: "#FDE68A",
   },
   {
     name: "Settings",
