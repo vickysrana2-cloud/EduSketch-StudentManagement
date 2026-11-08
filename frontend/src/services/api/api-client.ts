@@ -60,7 +60,7 @@ function sanitizeForLogging(obj: any): any {
  */
 function createApiClient(): AxiosInstance {
   const baseURL =
-    process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+    process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 
   const instance = axios.create({
     baseURL,
