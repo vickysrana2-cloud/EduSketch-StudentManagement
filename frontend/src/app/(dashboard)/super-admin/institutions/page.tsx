@@ -314,21 +314,22 @@ export default function SuperAdminInstitutionsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
-                  {institutions.map((inst) => {
+                  {institutions.map((inst, index) => {
+                    const instId = (inst as any)._id || inst.id || `inst-${index}`;
                     const statusStr = String(inst.status || "ACTIVE").toUpperCase();
                     const isActive = statusStr === "ACTIVE";
                     const isSuspended = statusStr === "SUSPENDED";
 
                     return (
                       <tr
-                        key={inst.id}
+                        key={instId}
                         className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
                       >
                         {/* Name & Contact */}
                         <td className="py-3.5 px-4 sm:px-6">
                           <div>
                             <Link
-                              href={`/super-admin/institutions/${inst.id}`}
+                              href={`/super-admin/institutions/${instId}`}
                               className="font-bold text-slate-900 dark:text-slate-100 hover:text-purple-600 transition"
                             >
                               {inst.name}
@@ -394,7 +395,7 @@ export default function SuperAdminInstitutionsPage() {
                               variant="outline"
                               onClick={() =>
                                 setAdminModalInstitution({
-                                  id: inst.id,
+                                  id: instId,
                                   name: inst.name,
                                 })
                               }
@@ -406,7 +407,7 @@ export default function SuperAdminInstitutionsPage() {
                             </Button>
 
                             {/* View / Manage Details */}
-                            <Link href={`/super-admin/institutions/${inst.id}`}>
+                            <Link href={`/super-admin/institutions/${instId}`}>
                               <Button
                                 size="sm"
                                 variant="outline"

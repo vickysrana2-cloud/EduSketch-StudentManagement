@@ -16,11 +16,23 @@ import { logout } from "@/store/slices/authSlice";
 const rawBaseQuery = fetchBaseQuery({
   baseUrl: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api",
   credentials: "include", // Essential for HttpOnly refresh-token cookies
-  prepareHeaders: (headers) => {
+  prepareHeaders: (headers, { getState }) => {
     const token = getAccessToken();
-    if (token && !headers.has("authorization")) {
+    if (token) {
       headers.set("authorization", `Bearer ${token}`);
     }
+
+    // Dev/Fallback role injection from Redux state for SuperAdmin & UserManagement guards
+    const state = getState() as any;
+    const userRole = state?.auth?.user?.role;
+    if (userRole) {
+      headers.set("x-user-role", userRole);
+    }
+    const userId = state?.auth?.user?._id || state?.auth?.user?.id;
+    if (userId) {
+      headers.set("x-user-id", userId);
+    }
+
     return headers;
   },
 });

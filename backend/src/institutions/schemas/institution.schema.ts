@@ -12,6 +12,16 @@ export type InstitutionDocument = Institution & Document;
 @Schema({
   timestamps: true,
   collection: 'institutions',
+  toJSON: {
+    virtuals: true,
+    transform: (_, ret: any) => {
+      ret.id = ret._id ? ret._id.toString() : ret.id;
+      return ret;
+    },
+  },
+  toObject: {
+    virtuals: true,
+  },
 })
 export class Institution {
   @Prop({

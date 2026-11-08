@@ -32,20 +32,22 @@ import { UpdateInstitutionDto } from './dto/update-institution.dto';
 import { UpdateInstitutionStatusDto } from './dto/update-institution-status.dto';
 import { CreateInstitutionAdminDto } from './dto/create-institution-admin.dto';
 import { SuperAdminGuard } from '../common/guards/super-admin.guard';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe';
 import { InstitutionStatus, InstitutionType } from './enums/institution.enums';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 
 @ApiTags('Institutions')
+@ApiBearerAuth('JWT-auth')
 @ApiHeader({
   name: 'x-user-role',
   description:
     'Temporary Super Admin authorization header. Must be set to SUPER_ADMIN.',
-  required: true,
+  required: false,
   schema: { default: 'SUPER_ADMIN' },
 })
-@UseGuards(SuperAdminGuard)
+@UseGuards(OptionalJwtAuthGuard, SuperAdminGuard)
 @Controller('institutions')
 export class InstitutionsController {
   constructor(private readonly institutionsService: InstitutionsService) {}

@@ -77,7 +77,7 @@ function createApiClient(): AxiosInstance {
     (config: InternalAxiosRequestConfig) => {
       // Automatically attach in-memory access token if available
       const token = getAccessToken();
-      if (token && !config.headers.Authorization) {
+      if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
 

@@ -34,6 +34,7 @@ import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { UserManagementGuard } from '../common/guards/user-management.guard';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe';
 import { UserRole, UserStatus } from './enums/user.enums';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -50,7 +51,7 @@ import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.in
   required: false,
   schema: { default: 'SUPER_ADMIN' },
 })
-@UseGuards(UserManagementGuard)
+@UseGuards(OptionalJwtAuthGuard, UserManagementGuard)
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
