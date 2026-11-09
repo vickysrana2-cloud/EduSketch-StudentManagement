@@ -82,7 +82,7 @@ export default function StudentDashboardPage() {
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
             <div className="flex items-center gap-4">
               <UserAvatar
-                src={student?.profileImage || user?.profileImage}
+                src={student?.profileImage || user?.profileImage || (user as any)?.avatar}
                 name={student?.name || user?.name}
                 size="xl"
                 shape="rounded-2xl"

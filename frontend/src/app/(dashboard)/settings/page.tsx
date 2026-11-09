@@ -106,10 +106,11 @@ export default function SettingsPage() {
     if (!userId) return;
 
     try {
+      const cleanAvatar = editAvatarUrl.trim() || null;
       await updateUser({
         id: userId,
         name: editName.trim(),
-        profileImage: editAvatarUrl.trim() || undefined,
+        profileImage: cleanAvatar,
       }).unwrap();
 
       if (authUser) {
@@ -117,7 +118,8 @@ export default function SettingsPage() {
           setUser({
             ...authUser,
             name: editName.trim(),
-            profileImage: editAvatarUrl.trim() || null,
+            profileImage: cleanAvatar,
+            avatar: cleanAvatar,
           })
         );
       }
@@ -261,7 +263,7 @@ export default function SettingsPage() {
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
               <div className="flex items-center gap-4">
                 <UserAvatar
-                  src={currentUserData?.profileImage}
+                  src={currentUserData?.profileImage || currentUserData?.avatar}
                   name={currentUserData?.name}
                   size="xl"
                   shape="rounded-2xl"

@@ -576,7 +576,7 @@ export class UsersService {
       existingUser.name = dto.name.trim();
     }
     if (dto.profileImage !== undefined) {
-      existingUser.profileImage = dto.profileImage;
+      existingUser.profileImage = dto.profileImage ? dto.profileImage.trim() : null;
     }
 
     const saved = await existingUser.save();

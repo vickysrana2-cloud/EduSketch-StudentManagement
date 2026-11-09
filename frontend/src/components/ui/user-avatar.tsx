@@ -77,6 +77,7 @@ export function UserAvatar({
       <img
         src={validSrc}
         alt={name || "User Avatar"}
+        referrerPolicy="no-referrer"
         onError={() => setHasError(true)}
         className={cn(
           "object-cover shrink-0 select-none",

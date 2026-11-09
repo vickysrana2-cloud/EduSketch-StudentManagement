@@ -39,7 +39,7 @@ export interface UpdateUserProfileInput {
   id: string;
   name?: string;
   email?: string;
-  profileImage?: string;
+  profileImage?: string | null;
 }
 
 export interface UpdateUserStatusInput {
@@ -121,6 +121,7 @@ export const userApi = baseApi.injectEndpoints({
       invalidatesTags: (_result, _error, { id }) => [
         { type: "User", id },
         { type: "User", id: "LIST" },
+        "User",
       ],
     }),
 

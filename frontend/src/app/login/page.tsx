@@ -14,7 +14,6 @@ import {
   EyeOff,
   Sun,
   Moon,
-  Sparkles,
 } from "lucide-react";
 
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
@@ -44,32 +43,6 @@ const loginSchema = z.object({
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
-
-const DEMO_PRESETS: Record<
-  Role,
-  { name: string; email: string; defaultPassword: string }
-> = {
-  SUPER_ADMIN: {
-    name: "Platform Director",
-    email: "superadmin@gmail.com",
-    defaultPassword: "superadmin123",
-  },
-  ADMIN: {
-    name: "School Administrator",
-    email: "admin@school.com",
-    defaultPassword: "AdminPass@123",
-  },
-  TEACHER: {
-    name: "Faculty Instructor",
-    email: "teacher@school.com",
-    defaultPassword: "TeacherPass@123",
-  },
-  STUDENT: {
-    name: "Enrolled Student",
-    email: "student@school.com",
-    defaultPassword: "StudentPass@123",
-  },
-};
 
 const ROLE_BUTTON_THEMES: Record<
   Role,
@@ -127,8 +100,8 @@ export default function LoginPage() {
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema) as any,
     defaultValues: {
-      email: DEMO_PRESETS.ADMIN.email,
-      password: DEMO_PRESETS.ADMIN.defaultPassword,
+      email: "",
+      password: "",
       role: "ADMIN",
     },
   });
@@ -139,11 +112,6 @@ export default function LoginPage() {
 
   const handleRoleChange = (newRole: Role) => {
     setValue("role", newRole);
-    const preset = DEMO_PRESETS[newRole];
-    if (preset) {
-      setValue("email", preset.email);
-      setValue("password", preset.defaultPassword);
-    }
   };
 
   const handleGoogleSignIn = () => {
@@ -381,11 +349,6 @@ export default function LoginPage() {
                   />
                   <span>Remember me on this device</span>
                 </label>
-
-                <div className="hidden sm:flex items-center gap-1 text-[11px] text-slate-400">
-                  <Sparkles className="h-3 w-3 text-amber-500" />
-                  <span>Demo credentials filled</span>
-                </div>
               </div>
 
               {/* Submit Button */}

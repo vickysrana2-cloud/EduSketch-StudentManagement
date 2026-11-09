@@ -56,7 +56,7 @@ export function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
     isError: isUserError,
     isSuccess: isUserSuccess,
   } = useGetCurrentUserQuery(undefined, {
-    skip: !isMounted || (isInitialized && !!user),
+    skip: !isMounted,
   });
 
   useEffect(() => {
@@ -66,15 +66,20 @@ export function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
   // Sync /auth/me response to Redux
   useEffect(() => {
     if (isUserSuccess && currentUserData) {
+      const avatarUrl =
+        (currentUserData as any).profileImage || currentUserData.avatar || null;
       dispatch(
         setUser({
           id: currentUserData.id,
           name: currentUserData.name,
           email: currentUserData.email,
           role: currentUserData.role,
-          avatar: currentUserData.avatar,
-          profileImage: (currentUserData as any).profileImage || currentUserData.avatar || null,
-          institutionId: currentUserData.institutionId,
+          avatar: avatarUrl,
+          profileImage: avatarUrl,
+          institutionId:
+            currentUserData.institutionId ||
+            (currentUserData.institution as any)?.id ||
+            null,
         })
       );
     } else if (isUserError) {

@@ -66,5 +66,23 @@ describe('PermissionsGuard', () => {
 
     await expect(guard.canActivate(context)).rejects.toThrow(ForbiddenException);
   });
+
+  it('should allow access unconditionally for SUPER_ADMIN', async () => {
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['CLASS_READ', 'STUDENT_READ']);
+    const user = { userId: 'root', role: UserRole.SUPER_ADMIN, institutionId: null };
+    const context = createMockContext(user);
+
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+    expect(mockRolePermissionsService.getEffectivePermissions).not.toHaveBeenCalled();
+  });
+
+  it('should allow SUPER_ADMIN to access routes with institution params', async () => {
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['CLASS_READ']);
+    const user = { userId: 'root', role: UserRole.SUPER_ADMIN, institutionId: null };
+    const context = createMockContext(user, { institutionId: 'any-institution-id' });
+
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+    expect(mockRolePermissionsService.getEffectivePermissions).not.toHaveBeenCalled();
+  });
 });
 

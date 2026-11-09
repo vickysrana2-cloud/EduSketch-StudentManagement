@@ -3,6 +3,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  OnModuleInit,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -54,13 +55,21 @@ export const SYSTEM_ROLES_METADATA: Array<{
 ];
 
 @Injectable()
-export class RolesService {
+export class RolesService implements OnModuleInit {
   private readonly logger = new Logger(RolesService.name);
 
   constructor(
     @InjectModel(Role.name)
     private readonly roleModel: Model<RoleDocument>,
   ) {}
+
+  async onModuleInit() {
+    try {
+      await this.seedSystemRoles();
+    } catch (err: any) {
+      this.logger.error(`Failed to auto-seed system roles on startup: ${err.message}`);
+    }
+  }
 
   /**
    * Helper to validate a 24-character hexadecimal MongoDB ObjectId

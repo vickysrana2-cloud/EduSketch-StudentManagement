@@ -5,6 +5,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  OnModuleInit,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -154,7 +155,7 @@ export const INITIAL_ROLE_PERMISSIONS_POLICY: Record<UserRole, string[]> = {
 };
 
 @Injectable()
-export class RolePermissionsService {
+export class RolePermissionsService implements OnModuleInit {
   private readonly logger = new Logger(RolePermissionsService.name);
 
   // In-memory cache for ultra-fast permission checks (Task 17 Requirement 3 & 4)
@@ -173,6 +174,14 @@ export class RolePermissionsService {
     @InjectModel(Institution.name)
     private readonly institutionModel: Model<InstitutionDocument>,
   ) {}
+
+  async onModuleInit() {
+    try {
+      await this.seedRolePermissions();
+    } catch (err: any) {
+      this.logger.error(`Failed to auto-seed role permissions on startup: ${err.message}`);
+    }
+  }
 
   /**
    * Helper to validate MongoDB ObjectId
@@ -396,7 +405,8 @@ export class RolePermissionsService {
 
     const role = await this.roleModel.findOne({ name: roleName }).exec();
     if (!role) {
-      return [];
+      const fallback = INITIAL_ROLE_PERMISSIONS_POLICY[roleName] || [];
+      return fallback;
     }
 
     const mappings = await this.getPermissionsByRole(
@@ -412,13 +422,19 @@ export class RolePermissionsService {
       }
     }
 
+    // Fallback to default role-permission policy if database has no mapping records
+    const effectivePerms =
+      permissionNames.length > 0
+        ? permissionNames
+        : INITIAL_ROLE_PERMISSIONS_POLICY[roleName] || [];
+
     // Cache results for 60 seconds (high performance, self-healing)
     this.permissionCache.set(cacheKey, {
-      permissions: permissionNames,
+      permissions: effectivePerms,
       expiry: now + 60 * 1000,
     });
 
-    return permissionNames;
+    return effectivePerms;
   }
 
   /**

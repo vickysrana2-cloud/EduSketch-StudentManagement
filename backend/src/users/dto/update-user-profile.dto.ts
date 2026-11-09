@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, MinLength, ValidateIf } from 'class-validator';
 
 export class UpdateUserProfileDto {
   @ApiPropertyOptional({
@@ -22,9 +22,11 @@ export class UpdateUserProfileDto {
   @ApiPropertyOptional({
     description: 'Optional profile avatar image URL',
     example: 'https://images.school.edu/profiles/amit.png',
+    nullable: true,
   })
   @IsOptional()
+  @ValidateIf((o) => o.profileImage !== null && o.profileImage !== undefined)
   @IsString()
-  profileImage?: string;
+  profileImage?: string | null;
 }
 

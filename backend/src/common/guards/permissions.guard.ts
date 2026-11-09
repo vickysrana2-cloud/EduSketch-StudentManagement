@@ -59,6 +59,12 @@ export class PermissionsGuard implements CanActivate {
       );
     }
 
+    // SUPER_ADMIN has platform-wide authority across all institutions and modules
+    // and bypasses fine-grained permission checks.
+    if (user.role === UserRole.SUPER_ADMIN || user.role === 'SUPER_ADMIN') {
+      return true;
+    }
+
     // Requirement 6: Tenant boundary enforcement
     // If request contains an institutionId param and user is not SUPER_ADMIN,
     // verify tenant match to prevent cross-institution access.

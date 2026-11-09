@@ -93,7 +93,7 @@ export default function AdminDashboardPage() {
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
             <div className="flex items-center gap-4">
               <UserAvatar
-                src={user?.profileImage}
+                src={user?.profileImage || (user as any)?.avatar}
                 name={user?.name}
                 size="xl"
                 shape="rounded-2xl"

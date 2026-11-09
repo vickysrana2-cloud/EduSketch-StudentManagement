@@ -113,7 +113,7 @@ export function UserProfileMenu() {
         >
           {/* Avatar Icon */}
           <UserAvatar
-            src={user?.profileImage}
+            src={user?.profileImage || (user as any)?.avatar}
             name={user?.name}
             size="sm"
             className="ring-2 ring-white dark:ring-slate-900 shadow-sm"
@@ -144,7 +144,7 @@ export function UserProfileMenu() {
             {/* User Profile Header Card */}
             <div className="p-3 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
               <UserAvatar
-                src={user?.profileImage}
+                src={user?.profileImage || (user as any)?.avatar}
                 name={user?.name}
                 size="md"
                 className="ring-2 ring-slate-100 dark:ring-slate-800"

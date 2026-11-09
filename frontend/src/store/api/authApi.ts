@@ -23,6 +23,7 @@ export interface BackendUser {
     status: string;
   } | null;
   avatar?: string;
+  profileImage?: string | null;
   lastLoginAt?: string | null;
   createdAt?: string;
 }

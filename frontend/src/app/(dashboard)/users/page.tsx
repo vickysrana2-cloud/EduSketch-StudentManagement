@@ -29,7 +29,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 
-import { useAppSelector } from "@/store/hooks";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { setUser } from "@/store/slices/authSlice";
 import { RoleProtectedLayout } from "@/components/layouts/RoleProtectedLayout";
 import {
   useGetUsersQuery,
@@ -66,7 +67,7 @@ const createUserSchema = z.object({
 const editUserSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Valid email address is required"),
-  profileImage: z.string().url("Must be a valid URL").or(z.literal("")).optional(),
+  profileImage: z.string().url("Must be a valid URL").or(z.literal("")).optional().nullable(),
 });
 
 type CreateUserFormData = z.infer<typeof createUserSchema>;
@@ -76,6 +77,7 @@ const ROLE_OPTIONS = ["ALL", "SUPER_ADMIN", "ADMIN", "TEACHER", "STUDENT"] as co
 const STATUS_OPTIONS = ["ALL", "ACTIVE", "INACTIVE", "SUSPENDED"] as const;
 
 export default function UsersManagementPage() {
+  const dispatch = useAppDispatch();
   const { toast } = useToast();
   const { user: currentUser } = useAppSelector((state) => state.auth);
   const isSuperAdmin = currentUser?.role === "SUPER_ADMIN";
@@ -221,12 +223,27 @@ export default function UsersManagementPage() {
     if (!targetUserId) return;
 
     try {
+      const cleanAvatar = data.profileImage?.trim() || null;
       await updateUser({
         id: targetUserId,
-        name: data.name,
-        email: data.email,
-        profileImage: data.profileImage || undefined,
+        name: data.name.trim(),
+        email: data.email.trim(),
+        profileImage: cleanAvatar,
       }).unwrap();
+
+      // If updating the currently logged-in user, immediately update auth state in Redux
+      const currentUserId = currentUser?.id || (currentUser as any)?._id;
+      if (currentUserId && String(targetUserId) === String(currentUserId)) {
+        dispatch(
+          setUser({
+            ...currentUser!,
+            name: data.name.trim(),
+            email: data.email.trim(),
+            profileImage: cleanAvatar,
+            avatar: cleanAvatar,
+          })
+        );
+      }
 
       toast({
         type: "success",
