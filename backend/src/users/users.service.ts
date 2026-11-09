@@ -545,15 +545,11 @@ export class UsersService {
       throw new NotFoundException(`User with ID '${id}' not found`);
     }
 
-    // Tenant Isolation
-    if (currentUser.role === UserRole.ADMIN) {
-      if (existingUser.institutionId?.toString() !== currentUser.institutionId) {
-        throw new ForbiddenException('Admin can only manage users in their institution');
-      }
-    } else if (currentUser.role === UserRole.TEACHER || currentUser.role === UserRole.STUDENT) {
-      if (currentUser.userId !== id) {
-        throw new ForbiddenException('You can only update your own profile');
-      }
+    // Access control: only SUPER_ADMIN can update other users; users can update their own profile
+    if (currentUser.role !== UserRole.SUPER_ADMIN && currentUser.userId !== id) {
+      throw new ForbiddenException(
+        'Access denied: Modifying other user accounts is restricted to SUPER_ADMIN. You can only update your own profile.',
+      );
     }
 
     // Validate email uniqueness if changing
@@ -620,16 +616,11 @@ export class UsersService {
       throw new BadRequestException('Users cannot deactivate or suspend their own account');
     }
 
-    // Tenant Isolation
-    if (currentUser.role === UserRole.ADMIN) {
-      if (existingUser.institutionId?.toString() !== currentUser.institutionId) {
-        throw new ForbiddenException('Admin can only manage users in their institution');
-      }
-      if (existingUser.role === UserRole.SUPER_ADMIN) {
-        throw new ForbiddenException('Admins cannot modify Super Admin accounts');
-      }
-    } else if (currentUser.role !== UserRole.SUPER_ADMIN) {
-      throw new ForbiddenException('Only administrators can update account status');
+    // Access control: only SUPER_ADMIN can update account operational status
+    if (currentUser.role !== UserRole.SUPER_ADMIN) {
+      throw new ForbiddenException(
+        'Access denied: Only SUPER_ADMIN can update account operational status.',
+      );
     }
 
     const previousStatus = existingUser.status;
@@ -901,6 +892,11 @@ export class UsersService {
     const query: Record<string, any> = {};
 
     if (currentUser) {
+      if (currentUser.role !== UserRole.SUPER_ADMIN) {
+        throw new ForbiddenException(
+          'Access denied: The global user directory is restricted exclusively to SUPER_ADMIN.',
+        );
+      }
       const tenantFilter = this.tenantContextService.buildTenantFilter(
         currentUser,
         filter?.institutionId,

@@ -66,7 +66,7 @@ const navItems: NavItem[] = [
     name: "Users",
     href: "/users",
     icon: <UserCog className="h-5 w-5" />,
-    roles: ["SUPER_ADMIN", "ADMIN"],
+    roles: ["SUPER_ADMIN"],
     color: "#6366F1",
     bgColor: "#EEF2FF",
     borderColor: "#C7D2FE",

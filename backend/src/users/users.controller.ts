@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
@@ -58,16 +59,25 @@ export class UsersController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @Roles(UserRole.SUPER_ADMIN)
   @ApiOperation({
     summary: 'Create a new user',
     description:
-      'Creates a new centralized user document. Requires SUPER_ADMIN or ADMIN. Role escalation is strictly prevented.',
+      'Creates a new centralized user document. Requires SUPER_ADMIN. Role escalation is strictly prevented.',
   })
   @ApiResponse({
     status: HttpStatus.CREATED,
     description: 'User created successfully.',
   })
-  async createUser(@Body() createUserDto: CreateUserDto) {
+  async createUser(
+    @Body() createUserDto: CreateUserDto,
+    @CurrentUser() currentUser?: AuthenticatedUser,
+  ) {
+    if (currentUser && currentUser.role !== UserRole.SUPER_ADMIN) {
+      throw new ForbiddenException(
+        'Access denied: Creating user accounts is restricted to SUPER_ADMIN.',
+      );
+    }
     return await this.usersService.createUser(createUserDto);
   }
 
@@ -116,10 +126,11 @@ export class UsersController {
   }
 
   @Get()
+  @Roles(UserRole.SUPER_ADMIN)
   @ApiOperation({
     summary: 'Get all users',
     description:
-      'Retrieves all users across the system with optional filters by role, status, institutionId, or search keyword.',
+      'Retrieves all users across the system with optional filters by role, status, institutionId, or search keyword. Restricted to SUPER_ADMIN.',
   })
   @ApiQuery({
     name: 'role',
@@ -153,6 +164,11 @@ export class UsersController {
     @Query('search') search?: string,
     @CurrentUser() currentUser?: AuthenticatedUser,
   ) {
+    if (currentUser && currentUser.role !== UserRole.SUPER_ADMIN) {
+      throw new ForbiddenException(
+        'Access denied: The global user directory is restricted exclusively to SUPER_ADMIN.',
+      );
+    }
     return await this.usersService.findAllUsers(
       {
         role,
@@ -241,7 +257,7 @@ export class UsersController {
   @ApiOperation({
     summary: 'Update user profile (Task 21)',
     description:
-      'Updates basic user profile details (name, email, profileImage). Protected fields like role, password, and institutionId cannot be modified here.',
+      'Updates basic user profile details (name, email, profileImage). Restricted to SUPER_ADMIN (or self-profile update).',
   })
   @ApiParam({
     name: 'id',
@@ -262,6 +278,11 @@ export class UsersController {
     @Body() updateUserProfileDto: UpdateUserProfileDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
+    if (currentUser.role !== UserRole.SUPER_ADMIN && currentUser.userId !== id) {
+      throw new ForbiddenException(
+        'Access denied: Modifying other user accounts is restricted to SUPER_ADMIN.',
+      );
+    }
     return await this.usersService.updateUserProfile(
       id,
       updateUserProfileDto,
@@ -270,11 +291,11 @@ export class UsersController {
   }
 
   @Patch(':id/status')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
+  @Roles(UserRole.SUPER_ADMIN)
   @ApiOperation({
     summary: 'Update user operational status & revoke sessions (Task 21)',
     description:
-      'Updates operational status (ACTIVE, INACTIVE, SUSPENDED). Automatically revokes all active sessions upon deactivation or suspension. Users cannot deactivate their own account.',
+      'Updates operational status (ACTIVE, INACTIVE, SUSPENDED). Automatically revokes all active sessions upon deactivation or suspension. Restricted to SUPER_ADMIN.',
   })
   @ApiParam({
     name: 'id',
@@ -298,6 +319,11 @@ export class UsersController {
     @Body() updateUserStatusDto: UpdateUserStatusDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
+    if (currentUser.role !== UserRole.SUPER_ADMIN) {
+      throw new ForbiddenException(
+        'Access denied: Modifying user operational status is restricted to SUPER_ADMIN.',
+      );
+    }
     return await this.usersService.updateUserStatusWithRevocation(
       id,
       updateUserStatusDto.status,

@@ -83,14 +83,9 @@ export const INITIAL_ROLE_PERMISSIONS_POLICY: Record<UserRole, string[]> = {
     'FEE_MANAGE',
   ],
   [UserRole.ADMIN]: [
-    // Institutional administration (excluding institution deletion)
+    // Institutional administration (excluding user directory and institution deletion)
     'INSTITUTION_READ',
     'INSTITUTION_UPDATE',
-    'USER_CREATE',
-    'USER_READ',
-    'USER_UPDATE',
-    'USER_DELETE',
-    'USER_MANAGE',
     'STUDENT_CREATE',
     'STUDENT_READ',
     'STUDENT_UPDATE',

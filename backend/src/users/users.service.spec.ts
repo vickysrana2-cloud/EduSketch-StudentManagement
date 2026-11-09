@@ -47,6 +47,17 @@ describe('UsersService (Unit)', () => {
     isEmailVerified: true,
   };
 
+  const mockSuperAdminUser: AuthenticatedUser = {
+    userId: new Types.ObjectId().toString(),
+    email: 'superadmin@system.gov',
+    name: 'Super Admin',
+    role: UserRole.SUPER_ADMIN,
+    status: UserStatus.ACTIVE,
+    institutionId: null,
+    institution: null,
+    isEmailVerified: true,
+  };
+
   const sampleInstitution = {
     _id: sampleInstId,
     name: 'Apex Academy',
@@ -238,7 +249,7 @@ describe('UsersService (Unit)', () => {
       const updated = await service.updateUserStatusWithRevocation(
         sampleUserId.toString(),
         UserStatus.SUSPENDED,
-        mockAdminUser,
+        mockSuperAdminUser,
       );
 
       expect(updated).toBeDefined();
@@ -247,6 +258,28 @@ describe('UsersService (Unit)', () => {
         { $set: expect.objectContaining({ revokedAt: expect.any(Date) }) },
       );
       expect(mockAuditLogsService.logAction).toHaveBeenCalled();
+    });
+
+    it('should reject status modification by ADMIN with ForbiddenException', async () => {
+      const mockDoc: any = {
+        _id: sampleUserId,
+        email: 'student@school.com',
+        status: UserStatus.ACTIVE,
+        role: UserRole.STUDENT,
+        institutionId: sampleInstId,
+      };
+
+      mockUserModel.findById.mockImplementation(() => ({
+        exec: jest.fn().mockResolvedValue(mockDoc),
+      }));
+
+      await expect(
+        service.updateUserStatusWithRevocation(
+          sampleUserId.toString(),
+          UserStatus.SUSPENDED,
+          mockAdminUser,
+        ),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 });
